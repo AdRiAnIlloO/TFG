@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.40629.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9EA2873A-E70B-4102-942C-BA5BD5CCF932}"
+	ProjectSection(SolutionItems) = preProject
+		index.html = index.html
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "js", "js", "{0AE91ABB-ABB6-4B0C-9793-362B14CF2597}"
+	ProjectSection(SolutionItems) = preProject
+		js\main.js = js\main.js
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "thirdparty", "thirdparty", "{958592F3-0741-433A-A36B-74B3E8726761}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "jsqrcode", "jsqrcode", "{64FE90F0-2BB8-4B6D-98A1-02B1D29A5594}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4EFBE996-883C-4BCE-BC2D-321A83EA73FB}"
+	ProjectSection(SolutionItems) = preProject
+		thirdparty\jsqrcode\src\qrcode.js = thirdparty\jsqrcode\src\qrcode.js
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0AE91ABB-ABB6-4B0C-9793-362B14CF2597} = {9EA2873A-E70B-4102-942C-BA5BD5CCF932}
+		{958592F3-0741-433A-A36B-74B3E8726761} = {9EA2873A-E70B-4102-942C-BA5BD5CCF932}
+		{64FE90F0-2BB8-4B6D-98A1-02B1D29A5594} = {958592F3-0741-433A-A36B-74B3E8726761}
+		{4EFBE996-883C-4BCE-BC2D-321A83EA73FB} = {64FE90F0-2BB8-4B6D-98A1-02B1D29A5594}
+	EndGlobalSection
+EndGlobal
