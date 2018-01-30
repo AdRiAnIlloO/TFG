@@ -22,6 +22,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4EFBE996-883
 		thirdparty\jsqrcode\src\qrcode.js = thirdparty\jsqrcode\src\qrcode.js
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "css", "css", "{CD9F9DAD-5668-497F-8FE6-AFBDC5DD7BD1}"
+	ProjectSection(SolutionItems) = preProject
+		css\main.css = css\main.css
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -31,5 +36,6 @@ Global
 		{958592F3-0741-433A-A36B-74B3E8726761} = {9EA2873A-E70B-4102-942C-BA5BD5CCF932}
 		{64FE90F0-2BB8-4B6D-98A1-02B1D29A5594} = {958592F3-0741-433A-A36B-74B3E8726761}
 		{4EFBE996-883C-4BCE-BC2D-321A83EA73FB} = {64FE90F0-2BB8-4B6D-98A1-02B1D29A5594}
+		{CD9F9DAD-5668-497F-8FE6-AFBDC5DD7BD1} = {9EA2873A-E70B-4102-942C-BA5BD5CCF932}
 	EndGlobalSection
 EndGlobal
