@@ -1,6 +1,8 @@
-<!DOCTYPE html>
-<html>
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
+	<meta charset="utf-8" />
 	<title>Mini-juego QR</title>
 
 	<link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
@@ -34,6 +36,7 @@
 	<script type="text/javascript" src="thirdparty/instascan.min.js"></script>
 
 	<script type="text/javascript" src="js/main.js"></script>
+	<script type="text/javascript" src="js/qr-code-gen.js"></script>
 </head>
 <body>
 	<!-- Build authentication modal -->
@@ -46,11 +49,11 @@
 				<div class="modal-body">
 					<div class="form-group">
 						<label class="col-form-label">Usuario:</label>
-						<input name="user" class="form-control" type="text" form="auth-form" />
+						<input name="user" required pattern="[^ ]*" class="form-control" type="text" form="auth-form" />
 					</div>
 					<div class="form-group">
 						<label class="col-form-label">Contrase&ntilde;a</label>
-						<input name="pass" class="form-control" type="password" form="auth-form" />
+						<input name="pass" required class="form-control" type="password" form="auth-form" />
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -61,6 +64,9 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- QR code generation page wrapper -->
+	<div id="qr-code-gen-html-wrapper"></div>
 
 	<!-- Actual QR controlled block in minigame -->
 	<div id="qrcode"></div>

@@ -3,25 +3,64 @@
 
 // This script assumes UI toolkit dependencies are already loaded into the page
 $(function () {
+	$('#qr-code-gen-html-wrapper').load('qr-code-gen.html', onQRCodeGenLoaded);
+
+	function hasLocalStorage() {
+		return window.Storage;
+	}
+
 	$('#auth-popup').modal();
 
-	$('#login').click(function () {
-		// TODO: Handle login attempt.
-		// To prevent submit function from getting called, return false
-		return true;
-	});
+	function getUsers() {
+		return (JSON.parse(window.sessionStorage.getItem('users')) || []);
+	}
 
-	$('#register').click(function () {
-		// TODO: Handle register attempt.
-		// To prevent submit function from getting called, return false
-		return true;
-	});
+	function findUser(user) {
+		return getUsers().indexOf(user);
+	}
+
+	if (hasLocalStorage()) {
+		function updateUsersJSON(users) {
+			window.sessionStorage.setItem('users', JSON.stringify(users));
+		}
+
+		// Auth form's submit doesn't know if user clicked login or register.
+		// Use this as generic error set from login/register click handlers
+		var authErrorMsg;
+
+		$('#login').click(function () {
+			// To prevent submit action-chain from executing, return false
+			if (findUser($('input[name=user]').val()) != -1) {
+				authErrorMsg = null;
+			} else {
+				authErrorMsg = "Error de acceso: usuario no registrado";
+			}
+		});
+
+		$('#register').click(function () {
+			// To prevent submit action-chain from executing, return false
+			var users = getUsers();
+
+			if (users.indexOf($('input[name=user]').val()) != -1) {
+				authErrorMsg = "Error de acceso: usuario ya existente";
+			} else {
+				users.push($('input[name=user]').val());
+				updateUsersJSON(users);
+				authErrorMsg = null;
+			}
+		});
+	}
 
 	$('#auth-form').submit(function () {
-		window.alert("Codificando valor: \"" + $('input[name=user]').val() + "\" en el codigo QR");
-		$('#qrcode').html('<img src="https://chart.googleapis.com/chart?cht=qr&chs=256x256&chl=adrian" alt="Code to scan" />');
-		event.preventDefault(); // Prevent reload page
-		$('#auth-popup').modal('hide');
+		event.preventDefault(); // Prevent reload page (always)
+
+		if (authErrorMsg) {
+			window.alert(authErrorMsg);
+			return;
+		}
+
+		var userEncodedAuth = $('input[name=user]').val();
+		setUpQRGeneration($('input[name=user]').val(), userEncodedAuth)
 	});
 
 	Instascan.Camera.getCameras().then(function (cameras) {
@@ -46,6 +85,7 @@ $(function () {
 		context.fillRect(0, 0, width, height);
 		context.drawImage($preview[0], 0, 0, width, height);
 
+		// jsqrcode specific code
 		try {
 			qrcode.decode();
 		} catch (error) {
@@ -69,9 +109,11 @@ $(function () {
 		clearInterval(captureToCanvas_ScanQR);
 	})
 
-	// Libreria jsqrcode - resultado de escaneo del nombre usuario en codigo QR
+	// jsqrcode specific code - result of the scanning of the embedded QR canvas 
 	qrcode.callback = function (result) {
-		// Place controlled QR code according to scanned one's origin
-		$('#qrcode').css({ left: result.points[1].x, top: result.points[1].y });
+		if (findUser(result.decodedStr) != -1) {
+			// Place controlled QR code according to scanned one's origin
+			$('#qrcode').css({ left: result.points[1].x, top: result.points[1].y });
+		}
 	};
 });

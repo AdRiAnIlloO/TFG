@@ -6,11 +6,13 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9EA2873A-E70B-4102-942C-BA5BD5CCF932}"
 	ProjectSection(SolutionItems) = preProject
 		index.html = index.html
+		qr-code-gen.html = qr-code-gen.html
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "js", "js", "{0AE91ABB-ABB6-4B0C-9793-362B14CF2597}"
 	ProjectSection(SolutionItems) = preProject
 		js\main.js = js\main.js
+		js\qr-code-gen.js = js\qr-code-gen.js
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "thirdparty", "thirdparty", "{958592F3-0741-433A-A36B-74B3E8726761}"
