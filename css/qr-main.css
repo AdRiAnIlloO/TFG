@@ -1,0 +1,17 @@
+﻿body {
+	background-color: lightblue;
+}
+
+img {
+	width: 100%;
+	height: 100%;
+}
+
+#preview {
+	/* Never set hidden as div parameter, or capture breaks */
+	visibility: hidden;
+}
+
+#qr-canvas {
+	visibility: hidden;
+}

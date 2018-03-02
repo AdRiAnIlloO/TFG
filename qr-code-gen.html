@@ -5,6 +5,8 @@
 	<meta charset="utf-8" />
 	<title>Mini-juego QR - QR generado</title>
 	<link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
+	<!--Do not load jQuery here! That resets jQuery globals from the containing QR auth view, causing errors-->
+	<script type="text/javascript" src="js/qr-code-gen.js"></script>
 </head>
 <body>
 	<div id="qr-gen-modal" class="modal fade" tabindex="-1" role="dialog">

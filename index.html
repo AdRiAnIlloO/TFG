@@ -4,77 +4,17 @@
 <head>
 	<meta charset="utf-8" />
 	<title>Mini-juego QR</title>
-
-	<link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
 	<link rel="stylesheet" href="css/main.css" />
-
-	<!-- Include scripts in correct dependency order, to guarantee safety -->
 	<script type="text/javascript" src="thirdparty/jquery.min.js"></script>
-	<script type="text/javascript" src="thirdparty/bootstrap/js/bootstrap.min.js"></script>
-
-	<!-- Import jsqrcode scripts. This library scans the QR codes -->
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/grid.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/version.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/detector.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/formatinf.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/errorlevel.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/bitmat.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/datablock.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/bmparser.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/datamask.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/rsdecoder.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/gf256poly.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/gf256.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/decoder.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/qrcode.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/findpat.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/alignpat.js"></script>
-	<script type="text/javascript" src="thirdparty/jsqrcode/src/databr.js"></script>
-
-	<!--Import instascan scripts-->
-	<!--This library scans QR codes, but it's used to capture video, due to difficulty to obtain position-->
-	<script type="text/javascript" src="thirdparty/instascan.min.js"></script>
-
 	<script type="text/javascript" src="js/main.js"></script>
-	<script type="text/javascript" src="js/qr-code-gen.js"></script>
 </head>
 <body>
-	<!-- Build authentication modal -->
-	<div id="auth-popup" class="modal fade" tabindex="-1" role="dialog">
-		<div class="modal-dialog modal-dialog-centered" role="document">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title">Accede o Reg&iacute;strate</h5>
-				</div>
-				<div class="modal-body">
-					<div class="form-group">
-						<label class="col-form-label">Usuario:</label>
-						<input name="user" required pattern="[^ ]*" class="form-control" type="text" form="auth-form" />
-					</div>
-					<div class="form-group">
-						<label class="col-form-label">Contrase&ntilde;a</label>
-						<input name="pass" required class="form-control" type="password" form="auth-form" />
-					</div>
-				</div>
-				<div class="modal-footer">
-					<input id="login" class="btn btn-primary" type="submit" form="auth-form" value="Acceder" />
-					<input id="register" class="btn btn-primary" type="submit" form="auth-form" value="Registrarse" />
-					<form id="auth-form"></form>
-				</div>
-			</div>
-		</div>
-	</div>
+	<!--QR + classical input authentication-->
+	<div id="qr-auth-html-wrapper"></div>
 
-	<!-- QR code generation page wrapper -->
-	<div id="qr-code-gen-html-wrapper"></div>
-
-	<!-- Actual QR controlled block in minigame -->
-	<div id="qrcode"></div>
-
-	<!-- WebCam capture, for instascan library -->
-	<video id="preview"></video>
-
-	<!-- WebCam capture shadown, for scanning by jsqrcode library -->
-	<canvas id="qr-canvas"></canvas>
+	<!--Pong game, some elements will be altered with QR effects-->
+	<!--This is not loaded via ajax, but directly instead because
+	otherwise include errors happen due to base path remaining unchanged-->
+	<iframe id="pong-game-html-wrapper" src="JuegoPongCamara/index.html"></iframe>
 </body>
 </html>
