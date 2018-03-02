@@ -1,3 +1,6 @@
 [submodule "jsqrcode"]
 	path = jsqrcode
 	url = D:/Coding/TFG/thirdparty/jsqrcode
+[submodule "JuegoPongCamara"]
+	path = JuegoPongCamara
+	url = ./JuegoPongCamara/.git
