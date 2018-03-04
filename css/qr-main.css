@@ -8,10 +8,12 @@ img {
 }
 
 #preview {
+	position: absolute;
 	/* Never set hidden as div parameter, or capture breaks */
 	visibility: hidden;
 }
 
 #qr-canvas {
+	position: absolute;
 	visibility: hidden;
 }
