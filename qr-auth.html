@@ -39,7 +39,7 @@
 </head>
 <body>
 	<!-- Build authentication modal -->
-	<div id="auth-popup" class="modal fade" tabindex="-1" role="dialog">
+	<div id="auth-popup" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
 		<div class="modal-dialog modal-dialog-centered" role="document">
 			<div class="modal-content">
 				<div class="modal-header">
@@ -54,6 +54,7 @@
 						<label class="col-form-label">Contrase&ntilde;a</label>
 						<input name="pass" required class="form-control" type="password" form="auth-form" />
 					</div>
+					<div id="auth-errors" class="alert alert-danger"></div>
 				</div>
 				<div class="modal-footer">
 					<input id="login" class="btn btn-primary" type="submit" form="auth-form" value="Acceder" />
@@ -70,7 +71,17 @@
 	<!-- WebCam capture, for instascan library -->
 	<video id="preview"></video>
 
-	<!-- WebCam capture shadow, for scanning by jsqrcode library -->
-	<canvas id="qr-canvas"></canvas>
+	<div id="collapsible-capture-feedback" class="container">
+		<div class="row justify-content-end">
+			<!-- WebCam capture shadow, for scanning by jsqrcode library -->
+			<canvas id="qr-canvas"></canvas>
+		</div>
+
+		<div class="row justify-content-end">
+			<button id="collapse-capture-btn" type="button" class="btn btn-secondary" data-toggle="button">
+				Ver captura en vivo
+			</button>
+		</div>
+	</div>
 </body>
 </html>

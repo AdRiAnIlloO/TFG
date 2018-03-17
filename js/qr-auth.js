@@ -1,6 +1,8 @@
 // Use strict mode globally
 "use strict";
 
+var g_AuthedUser = null;
+
 $(function () {
 	function hasLocalStorage() {
 		return window.Storage;
@@ -48,18 +50,21 @@ $(function () {
 		});
 	}
 
-	$('#auth-form').submit(function () {
+	$('#auth-form').submit(function (event) {
 		event.preventDefault(); // Prevent reload page (always)
 
-		if (authErrorMsg) {
-			window.alert(authErrorMsg);
+		if (authErrorMsg != null) {
+			$('#auth-errors').show();
+			$('#auth-errors').html(authErrorMsg);
 			return;
 		}
 
+		g_AuthedUser = $('input[name=user]').val();
 		var userEncodedAuth = $('input[name=user]').val();
 
 		$('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function () {
 			$('#auth-popup').modal('hide');
+			$('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
 			setUpQRGeneration($('input[name=user]').val(), userEncodedAuth)
 		});
 	});
@@ -77,13 +82,24 @@ $(function () {
 
 	var $preview = $('#preview');
 	var $qrCanvas = $('#qr-canvas');
+	var showLiveCaptureTxt = $('#collapse-capture-btn').html();
+
+	// Modify the live capture user-interactable section
+	$('#collapse-capture-btn').click(function () {
+		$qrCanvas.toggle();
+
+		if ($qrCanvas.css('display') == 'none') {
+			$(this).html(showLiveCaptureTxt);
+		} else {
+			$(this).html('Ocultar captura en vivo');
+		}
+	});
 
 	// Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
 	function captureToCanvas_ScanQR() {
 		var context = $qrCanvas[0].getContext('2d');
-		var width = $qrCanvas.attr('width');
-		var height = $qrCanvas.attr('height');
-		context.fillRect(0, 0, width, height);
+		var width = $qrCanvas.width();
+		var height = $qrCanvas.height();
 		context.drawImage($preview[0], 0, 0, width, height);
 
 		// jsqrcode specific code
@@ -95,8 +111,11 @@ $(function () {
 	}
 
 	$preview[0].addEventListener('play', function () {
-		$qrCanvas.attr('width', $preview.width());
-		$qrCanvas.attr('height', $preview.height());
+		// Set up both internal canvas + outer visual necessary dimensions, proportional to original video
+		var proportionalHeight = ($qrCanvas.width() * $preview.height() / $preview.width());
+		$qrCanvas.prop('width', $qrCanvas.width());
+		$qrCanvas.prop('height', proportionalHeight);
+		$qrCanvas.height(proportionalHeight);
 		setInterval(captureToCanvas_ScanQR, 1);
 	});
 
@@ -113,6 +132,15 @@ $(function () {
 	// jsqrcode specific code - result of the scanning of the embedded QR canvas 
 	qrcode.callback = function (result) {
 		if (findUser(result.decodedStr) != -1) {
+			if (g_AuthedUser == null) {
+				authErrorMsg = null;
+				$('input[name=user]').val(result.decodedStr);
+				$('#auth-form').submit();
+			}
+
+			var context = $qrCanvas[0].getContext('2d');
+			context.clearRect(result.points[0].x, result.points[0].y, 30, 30);
+
 			// Pay special attention that data must be wrapped in an array
 			$(document).trigger('qrUserDetected', [result]);
 		}

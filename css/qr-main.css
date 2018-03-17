@@ -7,13 +7,25 @@ img {
 	height: 100%;
 }
 
+#auth-errors {
+	display: none;
+}
+
 #preview {
 	position: absolute;
 	/* Never set hidden as div parameter, or capture breaks */
 	visibility: hidden;
 }
 
-#qr-canvas {
+/*Toggleable WebCam feedback to display in bottom right page corner*/
+#collapsible-capture-feedback {
 	position: absolute;
-	visibility: hidden;
+	z-index: 1050; /*Minimum level to allow interacting when Boostrap modal is open*/
+	right: 0px;
+	bottom: 0px;
+}
+
+#qr-canvas {
+	width: 200px; /*Set a width, let height be calculated later*/
+	display: none;
 }
