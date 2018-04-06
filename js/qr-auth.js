@@ -1,52 +1,101 @@
 // Use strict mode globally
 "use strict";
 
+// Global authed User instance
 var g_AuthedUser = null;
 
+function User(name, pass, encodedAuth) {
+	if (encodedAuth == null) {
+		this.name = name;
+		this.pass = pass; // Ciphered pass
+	} else {
+		var authData = encodedAuth.split(" ");
+		this.name = authData[0];
+		this.pass = authData[1]; // Ciphered pass
+	}
+}
+
+// Section of User functions that are defined once and shared across instances
+{
+	// Return an encoded auth to be embedded in QR
+	User.prototype.buildEncodedAuth = function () {
+		return (this.name + " " + this.pass);
+	}
+}
+
+// Return an array of registered users from browser session.
+// JSON can only transport name and pass (not functions)!
+function getSessionUsers() {
+	return (JSON.parse(window.sessionStorage.getItem('users')) || []);
+}
+
+// Add an User to the registered users array of session storage
+function addSessionUser(user) {
+	var users = getSessionUsers();
+	users.push(user);
+	window.sessionStorage.setItem('users', JSON.stringify(users));
+}
+
+// Returns a registered User instance whose name matches the parameter, null if not found
+function findSessionUserByName(name) {
+	var users = getSessionUsers();
+	var foundUser = null;
+
+	users.forEach(function (user) {
+		if (user.name === name) {
+			foundUser = user;
+			return;
+		}
+	});
+
+	return foundUser;
+}
+
+function hasLocalStorage() {
+	return window.Storage;
+}
+
+// Document is ready, callback
 $(function () {
-	function hasLocalStorage() {
-		return window.Storage;
-	}
-
-	function getUsers() {
-		return (JSON.parse(window.sessionStorage.getItem('users')) || []);
-	}
-
-	function findUser(user) {
-		return getUsers().indexOf(user);
-	}
-
 	$('#auth-popup').modal();
 
 	if (hasLocalStorage()) {
-		function updateUsersJSON(users) {
-			window.sessionStorage.setItem('users', JSON.stringify(users));
-		}
-
 		// Auth form's submit doesn't know if user clicked login or register.
 		// Use this as generic error set from login/register click handlers
 		var authErrorMsg;
 
 		$('#login').click(function () {
-			// To prevent submit action-chain from executing, return false
-			if (findUser($('input[name=user]').val()) != -1) {
-				authErrorMsg = null;
+			var jsonUser = findSessionUserByName($('input[name=user]').val());
+
+			if (jsonUser != null) {
+				var auxUser = new User(jsonUser.name, $('input[name=pass]').val());
+
+				if (auxUser.pass == jsonUser.pass) {
+					g_AuthedUser = auxUser;
+					authErrorMsg = null;
+				} else {
+					authErrorMsg = "Error de acceso: credenciales inválidas";
+				}
 			} else {
 				authErrorMsg = "Error de acceso: usuario no registrado";
 			}
+
+			// To prevent submit action-chain from executing, return false
 		});
 
 		$('#register').click(function () {
-			// To prevent submit action-chain from executing, return false
-			var users = getUsers();
+			var inputName = $('input[name=user]').val();
+			g_AuthedUser = findSessionUserByName(inputName);
 
-			if (users.indexOf($('input[name=user]').val()) != -1) {
-				authErrorMsg = "Error de acceso: usuario ya existente";
-			} else {
-				users.push($('input[name=user]').val());
-				updateUsersJSON(users);
+			if (g_AuthedUser == null) {
+				g_AuthedUser = new User(inputName, $('input[name=pass]').val());
+				addSessionUser(g_AuthedUser);
 				authErrorMsg = null;
+			} else {
+				authErrorMsg = "Error de acceso: usuario ya existente";
 			}
+
+			// To prevent submit action-chain from executing, return false
 		});
 	}
 
@@ -59,13 +108,10 @@ $(function () {
 			return;
 		}
 
-		g_AuthedUser = $('input[name=user]').val();
-		var userEncodedAuth = $('input[name=user]').val();
-
 		$('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function () {
 			$('#auth-popup').modal('hide');
 			$('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
-			setUpQRGeneration($('input[name=user]').val(), userEncodedAuth)
+			setUpQRGeneration(g_AuthedUser);
 		});
 	});
 
@@ -129,20 +175,26 @@ $(function () {
 		clearInterval(captureToCanvas_ScanQR);
 	});
 
-	// jsqrcode specific code - result of the scanning of the embedded QR canvas 
+	// jsqrcode specific code - result of the scanning of the embedded QR canvas
+	// This function respects possible User already authenticated, without overriding it
 	qrcode.callback = function (result) {
-		if (findUser(result.decodedStr) != -1) {
-			if (g_AuthedUser == null) {
-				authErrorMsg = null;
-				$('input[name=user]').val(result.decodedStr);
-				$('#auth-form').submit();
-			}
+		var auxUser = new User(null, null, result.decodedStr);
+		var foundUser = findSessionUserByName(auxUser.name);
 
-			var context = $qrCanvas[0].getContext('2d');
-			context.clearRect(result.points[0].x, result.points[0].y, 30, 30);
-
-			// Pay special attention that data must be wrapped in an array
-			$(document).trigger('qrUserDetected', [result]);
+		if (foundUser == null) {
+			return;
+		} else if (g_AuthedUser == foundUser) {
+			// Matches authenticated User
+		} else if (g_AuthedUser != null || foundUser.pass !== auxUser.pass) {
+			return;
+		} else {
+			// Authenticate user via QR
+			authErrorMsg = null;
+			g_AuthedUser = auxUser;
+			$('#auth-form').submit();
 		}
+
+		// Pay special attention that data must be wrapped in an array
+		$(document).trigger('qrUserDetected', [result]);
 	};
 })
