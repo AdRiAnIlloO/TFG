@@ -1,20 +1,19 @@
 ﻿<!DOCTYPE html>
-
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<meta charset="utf-8" />
-	<title>Mini-juego QR</title>
-	<link rel="stylesheet" href="css/main.css" />
-	<script type="text/javascript" src="thirdparty/jquery.min.js"></script>
-	<script type="text/javascript" src="js/main.js"></script>
+    <meta charset="utf-8" />
+    <title>Mini-juego QR</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <script type="text/javascript" src="thirdparty/jquery.min.js"></script>
+    <script type="text/javascript" src="js/main.js"></script>
 </head>
 <body>
-	<!--QR + classical input authentication-->
-	<div id="qr-auth-html-wrapper"></div>
+    <!--QR + classical input authentication-->
+    <div id="qr-auth-html-wrapper"></div>
 
-	<!--Pong game, some elements will be altered with QR effects-->
-	<!--This is not loaded via ajax, but directly instead because
-	otherwise include errors happen due to base path remaining unchanged-->
-	<iframe id="pong-game-html-wrapper" src="JuegoPongCamara/index.html"></iframe>
+    <!--Pong game, some elements will be altered with QR effects-->
+    <!--This is not loaded via ajax, but directly instead because
+    otherwise include errors happen due to base path remaining unchanged-->
+    <iframe id="pong-game-html-wrapper" src="JuegoPongCamara/index.html"></iframe>
 </body>
 </html>

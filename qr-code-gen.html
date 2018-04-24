@@ -1,28 +1,28 @@
 ﻿<!DOCTYPE html>
-
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<meta charset="utf-8" />
-	<title>Mini-juego QR - QR generado</title>
-	<link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
-	<!--Do not load jQuery here! That resets jQuery globals from the containing QR auth view, causing errors-->
-	<script type="text/javascript" src="js/qr-code-gen.js"></script>
+    <meta charset="utf-8" />
+    <title>Mini-juego QR - QR generado</title>
+    <link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
+
+    <!--Do not load jQuery here! That resets jQuery globals from the containing QR auth view, causing errors-->
+    <script type="text/javascript" src="js/qr-code-gen.js"></script>
 </head>
 <body>
-	<div id="qr-gen-modal" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
-		<div class="modal-dialog modal-dialog-centered" role="document">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title"></h5>
-				</div>
-				<div class="modal-body">
-					<img id="qr-gen-auth-code" alt="Imagen del código QR generado para autenticarse" />
-				</div>
-				<div class="modal-footer">
-					<button id="qr-gen-modal-close-btn" class="btn btn-primary">Entendido. Ir a la Web.</button>
-				</div>
-			</div>
-		</div>
-	</div>
+    <div id="qr-gen-modal" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                </div>
+                <div class="modal-body">
+                    <img id="qr-gen-auth-code" alt="Imagen del código QR generado para autenticarse" />
+                </div>
+                <div class="modal-footer">
+                    <button id="qr-gen-modal-close-btn" class="btn btn-primary">Entendido. Ir a la Web.</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
