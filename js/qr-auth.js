@@ -115,11 +115,21 @@ $(function () {
             return;
         }
 
-        $('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function () {
-            $('#auth-popup').modal('hide');
-            $('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
-            setUpQRGeneration(g_AuthedUser);
-        });
+        $('#qr-code-gen-html-wrapper').prop('src', 'qr-code-gen.html');
+
+        //$('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function () {
+        //    $('#auth-popup').modal('hide');
+        //    $('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
+        //    setUpQRGeneration(g_AuthedUser);
+        //});
+    });
+
+    $('#qr-code-gen-html-wrapper').on('load', function () {
+        window.alert("iframe generacion QR cargado");
+        $('#auth-popup').modal('hide');
+        $('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
+        //setUpQRGeneration(g_AuthedUser);
+        $g_pongJQuery = $(this)[0].contentWindow.setUpQRGeneration(g_AuthedUser);
     });
 
     Instascan.Camera.getCameras().then(function (cameras) {
