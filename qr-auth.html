@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <title>QR authentication</title>
     <link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="css/qr-main.css" />
+    <link rel="stylesheet" href="css/qr-auth.css" />
 
     <!-- Include scripts in correct dependency order, to guarantee safety -->
     <script type="text/javascript" src="thirdparty/jquery.min.js"></script>
@@ -67,8 +67,8 @@
     </div>
 
     <!-- QR code generation page wrapper -->
-    <!--<div id="qr-code-gen-html-wrapper"></div>-->
-    <iframe id="qr-code-gen-html-wrapper"></iframe>
+    <div id="qr-code-gen-html-wrapper"></div>
+    <iframe id="qr-code-gen-html-fallback-wrapper"></iframe>
 
     <!-- WebCam capture, for instascan library -->
     <video id="preview"></video>

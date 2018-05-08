@@ -7,6 +7,14 @@ var g_AuthedUser = null;
 // Console logging?
 var g_bDebug = true;
 
+// Authentications error, checked against null for advancing authentication form
+var g_AuthErrorMsg = null;
+
+// The QR welcome screen jQuery object, we load it only once the QR layer is completed by the user.
+// This object would not be necessary if compatible file:/// mode wasn't needed, but as it requires use of iframes,
+// its DOM is only accessible from a special attribute, so this provides an abstraction to hold the object in each mode.
+var g_QrGenScreenObj = null;
+
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
         this.name = name;
@@ -67,10 +75,6 @@ $(function () {
     $('#auth-popup').modal();
 
     if (hasLocalStorage()) {
-        // Auth form's submit doesn't know if user clicked login or register.
-        // Use this as generic error set from login/register click handlers
-        var authErrorMsg;
-
         $('#login').click(function () {
             var jsonUser = findSessionUserByName($('input[name=user]').val());
 
@@ -79,12 +83,12 @@ $(function () {
 
                 if (auxUser.passHash == jsonUser.passHash) {
                     g_AuthedUser = auxUser;
-                    authErrorMsg = null;
+                    g_AuthErrorMsg = null;
                 } else {
-                    authErrorMsg = "Error de acceso: credenciales inválidas";
+                    g_AuthErrorMsg = "Error de acceso: credenciales inválidas";
                 }
             } else {
-                authErrorMsg = "Error de acceso: usuario no registrado";
+                g_AuthErrorMsg = "Error de acceso: usuario no registrado";
             }
 
             // To prevent submit action-chain from executing, return false
@@ -97,39 +101,55 @@ $(function () {
             if (g_AuthedUser == null) {
                 g_AuthedUser = new User(inputName, $('input[name=pass]').val());
                 addSessionUser(g_AuthedUser);
-                authErrorMsg = null;
+                g_AuthErrorMsg = null;
             } else {
-                authErrorMsg = "Error de acceso: usuario ya existente";
+                g_AuthErrorMsg = "Error de acceso: usuario ya existente";
             }
 
             // To prevent submit action-chain from executing, return false
         });
     }
 
+    // This is called for both form authentications and QR scans access.
+    function onUserAuthenticated() {
+        $('#auth-popup').modal('hide');
+
+        // This is required to allow user clicking in the next modal (generated QR welcome screen)
+        $('#collapsible-capture-feedback').hide();
+
+        // Try classical load
+        $('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function (responseText, textStatus) {
+            if (textStatus === "error") {
+                // Classical load failed. We load the fallback welcome QR generation screen by setting a proper src...
+                $('#qr-code-gen-html-fallback-wrapper').prop('src', 'qr-code-gen.html');
+
+                // ...And wait for it to fully load
+                $('#qr-code-gen-html-fallback-wrapper').on('load', function () {
+                    g_QrGenScreenObj = $(this)[0].contentWindow;
+
+                    // Standard way to send messages to iframe?
+                    // buildEncodedAuth is not serializable, send th encoded auth already
+                    g_QrGenScreenObj.postMessage(JSON.stringify([g_AuthedUser.name, g_AuthedUser.passHash]), '*');
+                });
+            } else {
+                g_QrGenScreenObj = $(this);
+
+                // Start up the generated QR welcome screen. We could send the user object here if iframe fallback
+                // was not needed, because the loaded content would have access to the User object, and buildEncodedAuth
+                g_QrGenScreenObj.setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.passHash);
+            }
+        });
+    }
+
     $('#auth-form').submit(function (event) {
         event.preventDefault(); // Prevent reload page (always)
 
-        if (authErrorMsg != null) {
+        if (g_AuthErrorMsg != null) {
             $('#auth-errors').show();
-            $('#auth-errors').html(authErrorMsg);
-            return;
+            $('#auth-errors').html(g_AuthErrorMsg);
+        } else {
+            onUserAuthenticated();
         }
-
-        $('#qr-code-gen-html-wrapper').prop('src', 'qr-code-gen.html');
-
-        //$('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function () {
-        //    $('#auth-popup').modal('hide');
-        //    $('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
-        //    setUpQRGeneration(g_AuthedUser);
-        //});
-    });
-
-    $('#qr-code-gen-html-wrapper').on('load', function () {
-        window.alert("iframe generacion QR cargado");
-        $('#auth-popup').modal('hide');
-        $('#collapsible-capture-feedback').hide(); // Allow interacting with ongoing welcome modal
-        //setUpQRGeneration(g_AuthedUser);
-        $g_pongJQuery = $(this)[0].contentWindow.setUpQRGeneration(g_AuthedUser);
     });
 
     Instascan.Camera.getCameras().then(function (cameras) {
@@ -204,7 +224,7 @@ $(function () {
 
         if (foundUser == null) {
             return;
-        } else if (g_AuthedUser == foundUser) {
+        } else if (g_AuthedUser === foundUser) {
             // Matches authenticated User
         } else if (g_AuthedUser != null || foundUser.passHash !== auxUser.passHash) {
             return;
@@ -212,7 +232,7 @@ $(function () {
             // Authenticate user via QR
             authErrorMsg = null;
             g_AuthedUser = auxUser;
-            $('#auth-form').submit();
+            onUserAuthenticated();
         }
 
         // Pay special attention that data must be wrapped in an array

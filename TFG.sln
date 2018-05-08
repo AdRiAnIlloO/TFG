@@ -32,7 +32,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "css", "css", "{CD9F9DAD-5668-497F-8FE6-AFBDC5DD7BD1}"
 	ProjectSection(SolutionItems) = preProject
 		css\main.css = css\main.css
-		css\qr-main.css = css\qr-main.css
+		css\qr-auth.css = css\qr-auth.css
 	EndProjectSection
 EndProject
 Global

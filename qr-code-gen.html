@@ -6,7 +6,10 @@
     <link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
 
     <!--Do not load jQuery here! That resets jQuery globals from the containing QR auth view, causing errors-->
+    <!--<script type="text/javascript" src="thirdparty/jquery.min.js"></script>-->
+    <!-- Include scripts in correct dependency order, to guarantee safety -->
     <script type="text/javascript" src="thirdparty/jquery.min.js"></script>
+    <script type="text/javascript" src="thirdparty/bootstrap/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/qr-code-gen.js"></script>
 </head>
 <body>
