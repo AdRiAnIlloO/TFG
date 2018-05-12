@@ -4,7 +4,7 @@
     display: none;
     width: 100%;
     position: absolute;
-    z-index: 1051;
+    z-index: 1052;
 }
 
 #qr-auth-html-wrapper, #qr-auth-html-fallback-wrapper {

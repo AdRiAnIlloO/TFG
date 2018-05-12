@@ -275,4 +275,8 @@ $(function () {
     window.addEventListener('message', function (e) {
         window.parent.postMessage(e.data, '*');
     }, false);
+
+    // Inform to the main layer of the QR video dimensions
+    window.parent.postMessage(JSON.stringify(['qr_auth_layer_loaded', $('#qr-canvas').width(),
+        $('#qr-canvas').height()]), '*');
 })

@@ -92,10 +92,10 @@ $(function () {
         }
     }
 
-    function onQRAuthLayerLoaded() {
+    function onQRAuthLayerLoaded(qrCanvasWidth, qrCanvasHeight) {
         // Set the divisor in playbounds ratio, that is, the QR video dimensions
-        g_playBoundsRatios[X_DIM] /= $('#qr-canvas').width();
-        g_playBoundsRatios[Y_DIM] /= $('#qr-canvas').height();
+        g_playBoundsRatios[X_DIM] /= qrCanvasWidth;
+        g_playBoundsRatios[Y_DIM] /= qrCanvasHeight
 
         // Listen for the distinct events that will be sent by the QR auth layer
         $(document).on('qr_steps_completed', onQRStepsCompleted);
@@ -110,16 +110,11 @@ $(function () {
             $('#denied-protocol-alert').html(g_CompatModeDisplay);
             $('#denied-protocol-alert').show();
 
-            // We load the compat QR auth layer by setting a proper src...
+            // We load the compat QR auth layer by setting a proper src
             $('#qr-auth-html-fallback-wrapper').prop('src', 'qr-auth.html');
-
-            // ...And wait for it to fully load
-            $('#qr-auth-html-fallback-wrapper').on('load', function (responseText, textStatus) {
-                onQRAuthLayerLoaded();
-            });
         } else {
             g_bRunInLocalCompatMode = false;
-            onQRAuthLayerLoaded();
+            onQRAuthLayerLoaded($('#qr-canvas').width(), $('#qr-canvas').height());
         }
     });
 
@@ -141,6 +136,11 @@ $(function () {
             case "pong_video_dimensions":
                 {
                     handlePongVideoDimensions(dataArray[1], dataArray[2]);
+                    break;
+                }
+            case 'qr_auth_layer_loaded':
+                {
+                    onQRAuthLayerLoaded(dataArray[1], dataArray[2]);
                     break;
                 }
             case 'qr_steps_completed':
