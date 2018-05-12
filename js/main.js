@@ -6,14 +6,14 @@ const X_DIM = 0;
 const Y_DIM = 1;
 
 // The Pong jQuery object, we load it only once the QR layer is completed by the user.
-// This object would not be necessary if compatible file:/// mode wasn't needed, but as it requires use of iframes,
+// This object would not be necessary if compatible local file mode wasn't needed, but as it requires use of iframes,
 // its DOM is only accessible from a special attribute, so this provides an abstraction to hold the object in each mode.
 var g_PongObj = null;
 
 // X and Y size ratios from auth QR canvas to game playable area
 var g_playBoundsRatios = [1, 1];
 
-// This indicates if apply fallback mechanisms due to security policy restrictions when using the file:/// protocol
+// This indicates if apply fallback mechanisms due to security policy restrictions when accessing through local files
 var g_bRunInLocalCompatMode = false;
 
 var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los archivos de tu ordenador. "
@@ -27,39 +27,62 @@ $(function () {
             var x = ((result.points[0].x + result.points[1].x) * g_playBoundsRatios[X_DIM] / 2);
             var y = ((result.points[0].y + result.points[1].y) * g_playBoundsRatios[Y_DIM] / 2);
 
-            // Fill player block with user QR image
-            g_PongObj.$('#bloque_jugador').html('<img src="' + qrImgURL + '" />');
+            if (g_bRunInLocalCompatMode) {
+                // Send user QR image to fill player block
+                var encodedArray = JSON.stringify(['set_player_block_image', '<img src="' + qrImgURL + '" />']);
+                g_PongObj.postMessage(encodedArray, '*');
 
-            // Send player coordinates to the pong game
-            g_PongObj.$('body').trigger('externalMove', [x, y]);
+                // Send player coordinates to the Pong game
+                encodedArray = JSON.stringify(['external_move_player_block', x, y]);
+                g_PongObj.postMessage(encodedArray, '*');
+            } else {
+                // Fill player block with user QR image
+                g_PongObj.$('#bloque_jugador').html('<img src="' + qrImgURL + '" />');
+
+                // Send player coordinates to the Pong game
+                g_PongObj.$('body').trigger('externalMove', [x, y]);
+            }
         }
     }
 
-    // Here g_PongObj must have been assigned already
-    function onPongGameLoaded() {
-        g_playBoundsRatios[X_DIM] *= g_PongObj.$('#video_camara').width();
-        g_playBoundsRatios[Y_DIM] *= g_PongObj.$('#video_camara').height();
+    // Purpose: Clear Pong player block's image with plain old color if no valid user was detected this frame via QR
+    function onInvalidQRUserCurFrame() {
+        if (g_PongObj != null) {
+            if (g_bRunInLocalCompatMode) {
+                g_PongObj.postMessage(JSON.stringify(['set_player_block_image', ""]), '*');
+            } else {
+                g_PongObj.$('#bloque_jugador').html("");
+            }
+        }
+    }
+
+    // Set the dividend in playbounds ratio, that is, the Pong video dimensions
+    function handlePongVideoDimensions(width, height) {
+        g_playBoundsRatios[X_DIM] *= width;
+        g_playBoundsRatios[Y_DIM] *= height;
     }
 
     // Callback when QR auth + welcome screens are completed by the user
     function onQRStepsCompleted(event, qrImgURL) {
-        // Fill player block with user QR image
-        g_PongObj.$('#bloque_jugador').html('<img src="' + qrImgURL + '" />');
-
         if (g_bRunInLocalCompatMode === true) {
             // Classical load failed. We load the fallback Pong game layer by setting a proper src...
             $('#pong-game-html-fallback-wrapper').prop('src', 'JuegoPongCamara/index.html');
 
             // ...And wait for it to fully load
             $('#pong-game-html-fallback-wrapper').on('load', function () {
+                // First, place this view in front
+                $(this).css('z-index', 1053);
+
                 g_PongObj = $(this)[0].contentWindow;
-                onPongGameLoaded();
             });
         } else {
             // Classical load
             $('#pong-game-html-wrapper').load('JuegoPongCamara/index.html', function () {
+                // First, place this view in front
+                $(this).css('z-index', 1053);
+
                 g_PongObj = $(this);
-                onPongGameLoaded();
+                handlePongVideoDimensions(g_PongObj.$('#video_camara').width(), g_PongObj.$('#video_camara').height());
             });
         }
     }
@@ -70,8 +93,8 @@ $(function () {
         g_playBoundsRatios[Y_DIM] /= $('#qr-canvas').height();
 
         // Listen for the distinct events that will be sent by the QR auth layer
-        $(document).on('qrStepsCompleted', onQRStepsCompleted);
-        $(document).on('qrUserDetected', onQRUserDetected);
+        $(document).on('qr_steps_completed', onQRStepsCompleted);
+        $(document).on('qr_user_detected', onQRUserDetected);
     }
 
     // Try the classical load
@@ -97,4 +120,40 @@ $(function () {
     $('#denied-protocol-alert').click(function () {
         $(this).toggle();
     });
+
+    //////////////////////////////////////////////////////////////////////
+    ////////////               Iframe fallbacks               ////////////
+    //////////////////////////////////////////////////////////////////////
+
+    // Format of messages: An array containing a message name which identifies each one, followed by the message data.
+    // In other words: ['message name', message-specific data/format]
+    function onIFrameMsg(event) {
+        var dataArray = JSON.parse(event.data);
+        var name = dataArray[0];
+
+        switch (name) {
+            case "pong_video_dimensions":
+                {
+                    handlePongVideoDimensions(dataArray[1], dataArray[2]);
+                    break;
+                }
+            case 'qr_steps_completed':
+                {
+                    onQRStepsCompleted(event, dataArray[1]);
+                    break;
+                }
+            case 'qr_user_detected':
+                {
+                    onQRUserDetected(event, dataArray[1]);
+                    break;
+                }
+            case 'qr_user_invalid_or_undetected':
+                {
+                    onInvalidQRUserCurFrame();
+                    break;
+                }
+        }
+    }
+
+    window.addEventListener('message', onIFrameMsg, false);
 });

@@ -11,9 +11,12 @@ var g_bDebug = true;
 var g_AuthErrorMsg = null;
 
 // The QR welcome screen jQuery object, we load it only once the QR layer is completed by the user.
-// This object would not be necessary if compatible file:/// mode wasn't needed, but as it requires use of iframes,
+// This object would not be necessary if compatible local file mode wasn't needed, but as it requires use of iframes,
 // its DOM is only accessible from a special attribute, so this provides an abstraction to hold the object in each mode.
 var g_QrGenScreenObj = null;
+
+// This indicates if apply fallback mechanisms due to security policy restrictions when accessing through local files
+var g_bRunInLocalCompatMode = false;
 
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
@@ -125,18 +128,21 @@ $(function () {
 
                 // ...And wait for it to fully load
                 $('#qr-code-gen-html-fallback-wrapper').on('load', function () {
+                    g_bRunInLocalCompatMode = true;
                     g_QrGenScreenObj = $(this)[0].contentWindow;
 
                     // Standard way to send messages to iframe?
-                    // buildEncodedAuth is not serializable, send th encoded auth already
-                    g_QrGenScreenObj.postMessage(JSON.stringify([g_AuthedUser.name, g_AuthedUser.passHash]), '*');
+                    // buildEncodedAuth is not serializable, send the encoded auth already
+                    g_QrGenScreenObj.postMessage(JSON.stringify([g_AuthedUser.name, g_AuthedUser.buildEncodedAuth()]),
+                        '*');
                 });
             } else {
+                g_bRunInLocalCompatMode = false;
                 g_QrGenScreenObj = $(this);
 
                 // Start up the generated QR welcome screen. We could send the user object here if iframe fallback
                 // was not needed, because the loaded content would have access to the User object, and buildEncodedAuth
-                g_QrGenScreenObj.setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.passHash);
+                g_QrGenScreenObj.setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.buildEncodedAuth());
             }
         });
     }
@@ -189,7 +195,11 @@ $(function () {
         try {
             qrcode.decode();
         } catch (error) {
-            // Nothing
+            if (g_bRunInLocalCompatMode) {
+                window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
+            } else {
+                $(document).trigger('qr_user_invalid_or_undetected');
+            }
         }
     }
 
@@ -220,22 +230,48 @@ $(function () {
         }
 
         var auxUser = new User(null, null, result.decodedStr);
-        var foundUser = findSessionUserByName(auxUser.name);
 
-        if (foundUser == null) {
-            return;
-        } else if (g_AuthedUser === foundUser) {
-            // Matches authenticated User
-        } else if (g_AuthedUser != null || foundUser.passHash !== auxUser.passHash) {
-            return;
+        // Are we in a live user session already?
+        if (g_AuthedUser != null) {
+            // Yes. Credentials of checked QR user must match with the session user's.
+            if (auxUser.passHash !== g_AuthedUser.passHash) {
+                // Full credentials are incorrect
+                return;
+            }
         } else {
-            // Authenticate user via QR
-            authErrorMsg = null;
+            // No live session is active. Search for a registered user with that name.
+            var foundUser = findSessionUserByName(auxUser.name);
+
+            if (foundUser == null) {
+                // No registered user found with that name
+                return;
+            }
+
+            if (foundUser.passHash !== auxUser.passHash) {
+                // Full credentials are incorrect
+                return;
+            }
+
+            // Pass user authentication via QR
+            g_AuthErrorMsg = null;
             g_AuthedUser = auxUser;
             onUserAuthenticated();
         }
 
-        // Pay special attention that data must be wrapped in an array
-        $(document).trigger('qrUserDetected', [result]);
+        // Send message about that an existing user was detected and validated in this frame via QR.
+        // Pay special attention that data must be wrapped in an array.
+        if (g_bRunInLocalCompatMode) {
+            window.parent.postMessage(JSON.stringify(['qr_user_detected', result]), '*');
+        } else {
+            $(document).trigger('qr_user_detected', [result]);
+        }
     };
+
+    //////////////////////////////////////////////////////////////////////
+    ////////////               Iframe fallbacks               ////////////
+    //////////////////////////////////////////////////////////////////////
+
+    //window.addEventListener('message', function (e) {
+    //    window.parent.postMessage(e.data, '*');
+    //}, false);
 })
