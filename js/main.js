@@ -19,6 +19,9 @@ var g_bRunInLocalCompatMode = false;
 var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los archivos de tu ordenador. "
     + "¡No hay problema! Hemos habilitado unos mecanismos alternativos para que puedas utilizar la Web correctamente.";
 
+// Cached QR image URL of live session user
+var g_qrImgUrl = null;
+
 $(function () {
     function onQRUserDetected(event, result) {
         if (g_PongObj != null) {
@@ -29,7 +32,7 @@ $(function () {
 
             if (g_bRunInLocalCompatMode) {
                 // Send user QR image to fill player block
-                var encodedArray = JSON.stringify(['set_player_block_image', '<img src="' + qrImgURL + '" />']);
+                var encodedArray = JSON.stringify(['set_player_block_image', '<img src="' + g_qrImgUrl + '" />']);
                 g_PongObj.postMessage(encodedArray, '*');
 
                 // Send player coordinates to the Pong game
@@ -37,7 +40,7 @@ $(function () {
                 g_PongObj.postMessage(encodedArray, '*');
             } else {
                 // Fill player block with user QR image
-                g_PongObj.$('#bloque_jugador').html('<img src="' + qrImgURL + '" />');
+                g_PongObj.$('#bloque_jugador').html('<img src="' + g_qrImgUrl + '" />');
 
                 // Send player coordinates to the Pong game
                 g_PongObj.$('body').trigger('externalMove', [x, y]);
@@ -46,7 +49,7 @@ $(function () {
     }
 
     // Purpose: Clear Pong player block's image with plain old color if no valid user was detected this frame via QR
-    function onInvalidQRUserCurFrame() {
+    function onInvalidQRUserCurFrame(event) {
         if (g_PongObj != null) {
             if (g_bRunInLocalCompatMode) {
                 g_PongObj.postMessage(JSON.stringify(['set_player_block_image', ""]), '*');
@@ -63,7 +66,9 @@ $(function () {
     }
 
     // Callback when QR auth + welcome screens are completed by the user
-    function onQRStepsCompleted(event, qrImgURL) {
+    function onQRStepsCompleted(event, qrImgUrl) {
+        g_qrImgUrl = qrImgUrl;
+
         if (g_bRunInLocalCompatMode === true) {
             // Classical load failed. We load the fallback Pong game layer by setting a proper src...
             $('#pong-game-html-fallback-wrapper').prop('src', 'JuegoPongCamara/index.html');
@@ -95,6 +100,7 @@ $(function () {
         // Listen for the distinct events that will be sent by the QR auth layer
         $(document).on('qr_steps_completed', onQRStepsCompleted);
         $(document).on('qr_user_detected', onQRUserDetected);
+        $(document).on('qr_user_invalid_or_undetected', onInvalidQRUserCurFrame);
     }
 
     // Try the classical load
@@ -149,7 +155,7 @@ $(function () {
                 }
             case 'qr_user_invalid_or_undetected':
                 {
-                    onInvalidQRUserCurFrame();
+                    onInvalidQRUserCurFrame(event);
                     break;
                 }
         }

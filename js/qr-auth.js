@@ -236,7 +236,7 @@ $(function () {
             // Yes. Credentials of checked QR user must match with the session user's.
             if (auxUser.passHash !== g_AuthedUser.passHash) {
                 // Full credentials are incorrect
-                return;
+                throw 'qr_user_invalid';
             }
         } else {
             // No live session is active. Search for a registered user with that name.
@@ -244,12 +244,12 @@ $(function () {
 
             if (foundUser == null) {
                 // No registered user found with that name
-                return;
+                throw 'qr_user_undetected';
             }
 
             if (foundUser.passHash !== auxUser.passHash) {
                 // Full credentials are incorrect
-                return;
+                throw 'qr_user_invalid';
             }
 
             // Pass user authentication via QR
@@ -271,7 +271,8 @@ $(function () {
     ////////////               Iframe fallbacks               ////////////
     //////////////////////////////////////////////////////////////////////
 
-    //window.addEventListener('message', function (e) {
-    //    window.parent.postMessage(e.data, '*');
-    //}, false);
+    // This function is necessary in order to forward desired events to parent from layers belos this iframe view
+    window.addEventListener('message', function (e) {
+        window.parent.postMessage(e.data, '*');
+    }, false);
 })
