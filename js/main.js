@@ -10,8 +10,9 @@ const Y_DIM = 1;
 // its DOM is only accessible from a special attribute, so this provides an abstraction to hold the object in each mode.
 var g_PongObj = null;
 
-// X and Y size ratios from auth QR canvas to game playable area
-var g_playBoundsRatios = [1, 1];
+// Cached dimensions of ongoing videos
+var g_QrCaptureDims = Array(2);
+var g_PongCaptureDims = Array(2);
 
 // This indicates if apply fallback mechanisms due to security policy restrictions when accessing through local files
 var g_bRunInLocalCompatMode = false;
@@ -25,14 +26,22 @@ var g_qrImgUrl = null;
 $(function () {
     function onQRUserDetected(event, result) {
         if (g_PongObj != null) {
-            // Calculate Pong player's block position thanks to the top left QR coordinate, bottom right QR coordinate,
-            // and the QR video-to-Pong video dimensions ratio
-            var x = ((result.points[0].x + result.points[1].x) * g_playBoundsRatios[X_DIM] / 2);
-            var y = ((result.points[0].y + result.points[1].y) * g_playBoundsRatios[Y_DIM] / 2);
+            // Calculate Pong player's block position thanks to the bottom left QR point (result.points[0]),
+            // top left QR point (result.points[1]), top right QR point (results.point[2]), and the QR video-to-Pong
+            // video dimensions ratio
+            var ratios = [g_PongCaptureDims[X_DIM] / g_QrCaptureDims[X_DIM],
+                g_PongCaptureDims[Y_DIM] / g_QrCaptureDims[Y_DIM]];
+            var x = g_PongCaptureDims[X_DIM] - ((result.points[1].x + result.points[2].x) * ratios[X_DIM] / 2);
+            var y = ((result.points[1].y + result.points[0].y) * ratios[Y_DIM] / 2);
 
             if (g_bRunInLocalCompatMode) {
                 // Send user QR image to fill player block
-                var encodedArray = JSON.stringify(['set_player_block_image', '<img src="' + g_qrImgUrl + '" />']);
+                var encodedArray = JSON.stringify(['set_player_block_image', g_qrImgUrl]);
+                g_PongObj.postMessage(encodedArray, '*');
+
+                // Send scanned QR dimensions to Pong game for dynamic sizing
+                encodedArray = JSON.stringify(['resize_player_block',
+                    (result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
                 g_PongObj.postMessage(encodedArray, '*');
 
                 // Send player coordinates to the Pong game
@@ -40,7 +49,11 @@ $(function () {
                 g_PongObj.postMessage(encodedArray, '*');
             } else {
                 // Fill player block with user QR image
-                g_PongObj.$('#bloque_jugador').html('<img src="' + g_qrImgUrl + '" />');
+                g_PongObj.$('body').trigger('set_player_block_image', [g_qrImgUrl]);
+
+                // Send scanned QR dimensions to Pong game for dynamic sizing
+                g_PongObj.$('body').trigger('resize_player_block',
+                    [(result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
 
                 // Send player coordinates to the Pong game
                 g_PongObj.$('body').trigger('externalMove', [x, y]);
@@ -52,17 +65,17 @@ $(function () {
     function onInvalidQRUserCurFrame(event) {
         if (g_PongObj != null) {
             if (g_bRunInLocalCompatMode) {
-                g_PongObj.postMessage(JSON.stringify(['set_player_block_image', ""]), '*');
+                g_PongObj.postMessage(JSON.stringify(['clear_player_block']), '*');
             } else {
-                g_PongObj.$('#bloque_jugador').html("");
+                g_PongObj.$('body').trigger('clear_player_block');
             }
         }
     }
 
     // Set the dividend in playbounds ratio, that is, the Pong video dimensions
     function handlePongVideoDimensions(width, height) {
-        g_playBoundsRatios[X_DIM] *= width;
-        g_playBoundsRatios[Y_DIM] *= height;
+        g_PongCaptureDims[X_DIM] = width;
+        g_PongCaptureDims[Y_DIM] = width;
     }
 
     // Callback when QR auth + welcome screens are completed by the user
@@ -94,8 +107,8 @@ $(function () {
 
     function onQRAuthLayerLoaded(qrCanvasWidth, qrCanvasHeight) {
         // Set the divisor in playbounds ratio, that is, the QR video dimensions
-        g_playBoundsRatios[X_DIM] /= qrCanvasWidth;
-        g_playBoundsRatios[Y_DIM] /= qrCanvasHeight
+        g_QrCaptureDims[X_DIM] = qrCanvasWidth;
+        g_QrCaptureDims[Y_DIM] = qrCanvasHeight;
 
         // Listen for the distinct events that will be sent by the QR auth layer
         $(document).on('qr_steps_completed', onQRStepsCompleted);
@@ -133,31 +146,22 @@ $(function () {
         var name = dataArray[0];
 
         switch (name) {
-            case "pong_video_dimensions":
-                {
-                    handlePongVideoDimensions(dataArray[1], dataArray[2]);
-                    break;
-                }
-            case 'qr_auth_layer_loaded':
-                {
-                    onQRAuthLayerLoaded(dataArray[1], dataArray[2]);
-                    break;
-                }
-            case 'qr_steps_completed':
-                {
-                    onQRStepsCompleted(event, dataArray[1]);
-                    break;
-                }
-            case 'qr_user_detected':
-                {
-                    onQRUserDetected(event, dataArray[1]);
-                    break;
-                }
-            case 'qr_user_invalid_or_undetected':
-                {
-                    onInvalidQRUserCurFrame(event);
-                    break;
-                }
+            case "pong_video_dimensions": {
+                handlePongVideoDimensions(dataArray[1], dataArray[2]);
+                break;
+            } case 'qr_auth_layer_loaded': {
+                onQRAuthLayerLoaded(dataArray[1], dataArray[2]);
+                break;
+            } case 'qr_steps_completed': {
+                onQRStepsCompleted(event, dataArray[1]);
+                break;
+            } case 'qr_user_detected': {
+                onQRUserDetected(event, dataArray[1]);
+                break;
+            } case 'qr_user_invalid_or_undetected': {
+                onInvalidQRUserCurFrame(event);
+                break;
+            }
         }
     }
 

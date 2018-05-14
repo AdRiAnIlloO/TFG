@@ -5,7 +5,7 @@
 var g_AuthedUser = null;
 
 // Console logging?
-var g_bDebug = true;
+var g_bDebug = false;
 
 // Authentications error, checked against null for advancing authentication form
 var g_AuthErrorMsg = null;
@@ -142,7 +142,7 @@ $(function () {
 
                 // Start up the generated QR welcome screen. We could send the user object here if iframe fallback
                 // was not needed, because the loaded content would have access to the User object, and buildEncodedAuth
-                g_QrGenScreenObj.setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.buildEncodedAuth());
+                setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.buildEncodedAuth());
             }
         });
     }
@@ -191,8 +191,8 @@ $(function () {
         var height = $qrCanvas.height();
         context.drawImage($preview[0], 0, 0, width, height);
 
-        // jsqrcode specific code
         try {
+            // jsqrcode specific code
             qrcode.decode();
         } catch (error) {
             if (g_bRunInLocalCompatMode) {
@@ -227,6 +227,14 @@ $(function () {
     qrcode.callback = function (result) {
         if (g_bDebug) {
             console.log("Scanned QR code decoded string = " + result.decodedStr);
+
+            var context = $qrCanvas[0].getContext('2d');
+            context.beginPath();
+            context.arc(result.points[0].x, result.points[0].y, 5, 0, 2 * Math.PI);
+            context.arc(result.points[1].x, result.points[1].y, 5, 0, 2 * Math.PI);
+            context.arc(result.points[2].x, result.points[2].y, 5, 0, 2 * Math.PI);
+            context.stroke();
+            return;
         }
 
         var auxUser = new User(null, null, result.decodedStr);

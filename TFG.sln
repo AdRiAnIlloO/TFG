@@ -35,6 +35,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "css", "css", "{CD9F9DAD-566
 		css\qr-auth.css = css\qr-auth.css
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "JuegoPongCamara", "JuegoPongCamara", "{324A0F3A-560E-44DE-AFF4-FC4F6B2FD903}"
+	ProjectSection(SolutionItems) = preProject
+		JuegoPongCamara\index.html = JuegoPongCamara\index.html
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "js", "js", "{6577BA38-E376-46A0-8012-C44464A86B64}"
+	ProjectSection(SolutionItems) = preProject
+		JuegoPongCamara\js\effects.js = JuegoPongCamara\js\effects.js
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "css", "css", "{604B6BD4-41CD-43EF-A2F2-D05A0CF006E0}"
+	ProjectSection(SolutionItems) = preProject
+		JuegoPongCamara\css\style.css = JuegoPongCamara\css\style.css
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -45,5 +60,7 @@ Global
 		{64FE90F0-2BB8-4B6D-98A1-02B1D29A5594} = {958592F3-0741-433A-A36B-74B3E8726761}
 		{4EFBE996-883C-4BCE-BC2D-321A83EA73FB} = {64FE90F0-2BB8-4B6D-98A1-02B1D29A5594}
 		{CD9F9DAD-5668-497F-8FE6-AFBDC5DD7BD1} = {9EA2873A-E70B-4102-942C-BA5BD5CCF932}
+		{6577BA38-E376-46A0-8012-C44464A86B64} = {324A0F3A-560E-44DE-AFF4-FC4F6B2FD903}
+		{604B6BD4-41CD-43EF-A2F2-D05A0CF006E0} = {324A0F3A-560E-44DE-AFF4-FC4F6B2FD903}
 	EndGlobalSection
 EndGlobal
