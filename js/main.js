@@ -92,6 +92,9 @@ $(function () {
                 $(this).css('z-index', 1053);
 
                 g_PongObj = $(this)[0].contentWindow;
+
+                // Set Pong execution mode without self camera tracking (it will be done by this layer)
+                g_PongObj.postMessage(JSON.stringify(['set_external_camera_tracking']), '*');
             });
         } else {
             // Classical load
@@ -101,6 +104,9 @@ $(function () {
 
                 g_PongObj = $(this);
                 handlePongVideoDimensions(g_PongObj.$('#video_camara').width(), g_PongObj.$('#video_camara').height());
+
+                // Set Pong execution mode without self camera tracking (it will be done by this layer)
+                g_PongObj.$('body').trigger('set_external_camera_tracking');
             });
         }
     }
