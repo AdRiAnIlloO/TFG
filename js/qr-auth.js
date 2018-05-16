@@ -136,8 +136,8 @@ $(function () {
 
                     // Standard way to send messages to iframe?
                     // buildEncodedAuth is not serializable, send the encoded auth already
-                    g_QrGenScreenObj.postMessage(JSON.stringify([g_AuthedUser.name, g_AuthedUser.buildEncodedAuth()]),
-                        '*');
+                    g_QrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
+                        g_AuthedUser.buildEncodedAuth()]), '*');
                 });
             } else {
                 // First, make it visible
