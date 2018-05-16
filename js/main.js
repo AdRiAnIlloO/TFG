@@ -79,7 +79,7 @@ $(function () {
     // Set the dividend in playbounds ratio, that is, the Pong video dimensions
     function handlePongVideoDimensions(width, height) {
         g_PongCaptureDims[X_DIM] = width;
-        g_PongCaptureDims[Y_DIM] = width;
+        g_PongCaptureDims[Y_DIM] = height;
     }
 
     // Callback when QR auth + welcome screens are completed by the user
