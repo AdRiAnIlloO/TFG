@@ -49,14 +49,17 @@ $(function () {
                 g_PongObj.postMessage(encodedArray, '*');
             } else {
                 // Fill player block with user QR image
-                g_PongObj.$('body').trigger('set_player_block_image', [g_qrImgUrl]);
+                //g_PongObj.$('body').trigger('set_player_block_image', [g_qrImgUrl]);
+                g_PongObj.trigger('set_player_block_image', [g_qrImgUrl]);
 
                 // Send scanned QR dimensions to Pong game for dynamic sizing
-                g_PongObj.$('body').trigger('resize_player_block',
-                    [(result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
+                //g_PongObj.$('body').trigger('resize_player_block',
+                //    [(result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
+                g_PongObj.trigger('resize_player_block', [(result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
 
                 // Send player coordinates to the Pong game
-                g_PongObj.$('body').trigger('externalMove', [x, y]);
+                //g_PongObj.$('body').trigger('externalMove', [x, y]);
+                g_PongObj.trigger('externalMove', [x, y]);
             }
         }
     }
@@ -67,7 +70,8 @@ $(function () {
             if (g_bRunInLocalCompatMode) {
                 g_PongObj.postMessage(JSON.stringify(['clear_player_block']), '*');
             } else {
-                g_PongObj.$('body').trigger('clear_player_block');
+                //g_PongObj.$('body').trigger('clear_player_block');
+                g_PongObj.trigger('clear_player_block');
             }
         }
     }
@@ -88,8 +92,8 @@ $(function () {
 
             // ...And wait for it to fully load
             $('#pong-game-html-fallback-wrapper').on('load', function () {
-                // First, place this view in front
-                $(this).css('z-index', 1053);
+                // First, make it visible
+                $(this).css('visibility', 'visible');
 
                 g_PongObj = $(this)[0].contentWindow;
 
@@ -99,14 +103,16 @@ $(function () {
         } else {
             // Classical load
             $('#pong-game-html-wrapper').load('JuegoPongCamara/index.html', function () {
-                // First, place this view in front
-                $(this).css('z-index', 1053);
+                // First, make it visible
+                $(this).css('visibility', 'visible');
 
                 g_PongObj = $(this);
-                handlePongVideoDimensions(g_PongObj.$('#video_camara').width(), g_PongObj.$('#video_camara').height());
+                //handlePongVideoDimensions(g_PongObj.$('#video_camara').width(), g_PongObj.$('#video_camara').height());
+                handlePongVideoDimensions($('#video_camara').width(), $('#video_camara').height());
 
                 // Set Pong execution mode without self camera tracking (it will be done by this layer)
-                g_PongObj.$('body').trigger('set_external_camera_tracking');
+                //g_PongObj.$('body').trigger('set_external_camera_tracking');
+                g_PongObj.trigger('set_external_camera_tracking');
             });
         }
     }
@@ -125,14 +131,25 @@ $(function () {
     // Try the classical load
     $('#qr-auth-html-wrapper').load('qr-auth.html', function (responseText, textStatus) {
         if (textStatus === "error") {
-            g_bRunInLocalCompatMode = true;
             $('#denied-protocol-alert').html(g_CompatModeDisplay);
             $('#denied-protocol-alert').show();
 
-            // We load the compat QR auth layer by setting a proper src
+            // We load the compat QR auth layer by setting a proper src...
             $('#qr-auth-html-fallback-wrapper').prop('src', 'qr-auth.html');
+
+            // ...And wait for it to fully load
+            $('#qr-auth-html-fallback-wrapper').on('load', function () {
+                g_bRunInLocalCompatMode = true;
+
+                // First, make it visible
+                $(this).css('visibility', 'visible');
+            });
         } else {
             g_bRunInLocalCompatMode = false;
+
+            // First, make it visible
+            $(this).css('visibility', 'visible');
+
             onQRAuthLayerLoaded($('#qr-canvas').width(), $('#qr-canvas').height());
         }
     });

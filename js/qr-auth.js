@@ -128,6 +128,9 @@ $(function () {
 
                 // ...And wait for it to fully load
                 $('#qr-code-gen-html-fallback-wrapper').on('load', function () {
+                    // First, make it visible
+                    $(this).css('visibility', 'visible');
+
                     g_bRunInLocalCompatMode = true;
                     g_QrGenScreenObj = $(this)[0].contentWindow;
 
@@ -137,11 +140,13 @@ $(function () {
                         '*');
                 });
             } else {
+                // First, make it visible
+                $(this).css('visibility', 'visible');
+
                 g_bRunInLocalCompatMode = false;
                 g_QrGenScreenObj = $(this);
-
-                // Start up the generated QR welcome screen. We could send the user object here if iframe fallback
-                // was not needed, because the loaded content would have access to the User object, and buildEncodedAuth
+                
+                // View is not fully loaded yet, can't send set_up_qr_generation event. Call related functiond directly.
                 setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.buildEncodedAuth());
             }
         });
@@ -280,8 +285,8 @@ $(function () {
     //////////////////////////////////////////////////////////////////////
 
     // This function is necessary in order to forward desired events to parent from layers belos this iframe view
-    window.addEventListener('message', function (e) {
-        window.parent.postMessage(e.data, '*');
+    window.addEventListener('message', function (event) {
+        window.parent.postMessage(event.data, '*');
     }, false);
 
     // Inform to the main layer of the QR video dimensions
