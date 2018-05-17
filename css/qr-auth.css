@@ -31,9 +31,8 @@ img {
     width: 200px; /* Fix a width, let height be calculated later */
 }
 
-#qr-code-gen-html-wrapper, #qr-code-gen-html-fallback-wrapper {
+#qr-code-gen-html-wrapper {
     height: 100%;
     width: 100%;
     position: absolute;
-    visibility: hidden; /* As both elements have the same z-index, hide both initially, draw later the first loaded */
 }

@@ -11,12 +11,7 @@ var g_bDebug = false;
 var g_AuthErrorMsg = null;
 
 // The QR welcome screen jQuery object, we load it only once the QR layer is completed by the user.
-// This object would not be necessary if compatible local file mode wasn't needed, but as it requires use of iframes,
-// its DOM is only accessible from a special attribute, so this provides an abstraction to hold the object in each mode.
 var g_QrGenScreenObj = null;
-
-// This indicates if apply fallback mechanisms due to security policy restrictions when accessing through local files
-var g_bRunInLocalCompatMode = false;
 
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
@@ -120,35 +115,31 @@ $(function () {
         // This is required to allow user clicking in the next modal (generated QR welcome screen)
         $('#collapsible-capture-feedback').hide();
 
-        // Try classical load
-        $('#qr-code-gen-html-wrapper').load('qr-code-gen.html', function (responseText, textStatus) {
-            if (textStatus === "error") {
-                // Classical load failed. We load the fallback welcome QR generation screen by setting a proper src...
-                $('#qr-code-gen-html-fallback-wrapper').prop('src', 'qr-code-gen.html');
+        // We load the fallback welcome QR generation screen by setting a proper src...
+        $('#qr-code-gen-html-wrapper').prop('src', 'qr-code-gen.html');
 
-                // ...And wait for it to fully load
-                $('#qr-code-gen-html-fallback-wrapper').on('load', function () {
-                    // First, make it visible
-                    $(this).css('visibility', 'visible');
+        // ...And wait for it to fully load
+        $('#qr-code-gen-html-wrapper').on('load', function () {
+            g_QrGenScreenObj = $(this)[0].contentWindow;
 
-                    g_bRunInLocalCompatMode = true;
-                    g_QrGenScreenObj = $(this)[0].contentWindow;
+            // Standard way to send messages to iframe?
+            // buildEncodedAuth is not serializable, send the encoded auth already
+            g_QrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
+                g_AuthedUser.buildEncodedAuth()]), '*');
 
-                    // Standard way to send messages to iframe?
-                    // buildEncodedAuth is not serializable, send the encoded auth already
-                    g_QrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
-                        g_AuthedUser.buildEncodedAuth()]), '*');
-                });
-            } else {
-                // First, make it visible
-                $(this).css('visibility', 'visible');
+            // This function is necessary in order to forward desired events to parent from layers below
+            // current iframe view
+            window.addEventListener('message', function (event) {
+                var dataArray = JSON.parse(event.data);
+                var name = dataArray[0];
 
-                g_bRunInLocalCompatMode = false;
-                g_QrGenScreenObj = $(this);
-                
-                // View is not fully loaded yet, can't send set_up_qr_generation event. Call related functiond directly.
-                setUpQRGeneration(g_AuthedUser.name, g_AuthedUser.buildEncodedAuth());
-            }
+                switch (name) {
+                    case 'qr_steps_completed': {
+                        window.parent.postMessage(event.data, '*');
+                        break;
+                    }
+                }
+            }, false);
         });
     }
 
@@ -200,11 +191,7 @@ $(function () {
             // jsqrcode specific code
             qrcode.decode();
         } catch (error) {
-            if (g_bRunInLocalCompatMode) {
-                window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
-            } else {
-                $(document).trigger('qr_user_invalid_or_undetected');
-            }
+            window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
         }
     }
 
@@ -273,23 +260,14 @@ $(function () {
 
         // Send message about that an existing user was detected and validated in this frame via QR.
         // Pay special attention that data must be wrapped in an array.
-        if (g_bRunInLocalCompatMode) {
-            window.parent.postMessage(JSON.stringify(['qr_user_detected', result]), '*');
-        } else {
-            $(document).trigger('qr_user_detected', [result]);
-        }
+        window.parent.postMessage(JSON.stringify(['qr_user_detected', result]), '*');
     };
 
     //////////////////////////////////////////////////////////////////////
     ////////////               Iframe fallbacks               ////////////
     //////////////////////////////////////////////////////////////////////
 
-    // This function is necessary in order to forward desired events to parent from layers belos this iframe view
-    window.addEventListener('message', function (event) {
-        window.parent.postMessage(event.data, '*');
-    }, false);
-
-    // Inform to the main layer of the QR video dimensions
-    window.parent.postMessage(JSON.stringify(['qr_auth_layer_loaded', $('#qr-canvas').width(),
+    // Inform the main layer of the QR video dimensions
+    window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions', $('#qr-canvas').width(),
         $('#qr-canvas').height()]), '*');
 })

@@ -6,16 +6,11 @@ const X_DIM = 0;
 const Y_DIM = 1;
 
 // The Pong jQuery object, we load it only once the QR layer is completed by the user.
-// This object would not be necessary if compatible local file mode wasn't needed, but as it requires use of iframes,
-// its DOM is only accessible from a special attribute, so this provides an abstraction to hold the object in each mode.
 var g_PongObj = null;
 
 // Cached dimensions of ongoing videos
 var g_QrCaptureDims = Array(2);
 var g_PongCaptureDims = Array(2);
-
-// This indicates if apply fallback mechanisms due to security policy restrictions when accessing through local files
-var g_bRunInLocalCompatMode = false;
 
 var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los archivos de tu ordenador. "
     + "¡No hay problema! Hemos habilitado unos mecanismos alternativos para que puedas utilizar la Web correctamente.";
@@ -34,45 +29,25 @@ $(function () {
             var x = g_PongCaptureDims[X_DIM] - ((result.points[1].x + result.points[2].x) * ratios[X_DIM] / 2);
             var y = ((result.points[1].y + result.points[0].y) * ratios[Y_DIM] / 2);
 
-            if (g_bRunInLocalCompatMode) {
-                // Send user QR image to fill player block
-                var encodedArray = JSON.stringify(['set_player_block_image', g_qrImgUrl]);
-                g_PongObj.postMessage(encodedArray, '*');
+            // Send user QR image to fill player block
+            var encodedArray = JSON.stringify(['set_player_block_image', g_qrImgUrl]);
+            g_PongObj.postMessage(encodedArray, '*');
 
-                // Send scanned QR dimensions to Pong game for dynamic sizing
-                encodedArray = JSON.stringify(['resize_player_block',
-                    (result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
-                g_PongObj.postMessage(encodedArray, '*');
+            // Send scanned QR dimensions to Pong game for dynamic sizing
+            encodedArray = JSON.stringify(['resize_player_block',
+                (result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
+            g_PongObj.postMessage(encodedArray, '*');
 
-                // Send player coordinates to the Pong game
-                encodedArray = JSON.stringify(['external_move_player_block', x, y]);
-                g_PongObj.postMessage(encodedArray, '*');
-            } else {
-                // Fill player block with user QR image
-                //g_PongObj.$('body').trigger('set_player_block_image', [g_qrImgUrl]);
-                g_PongObj.trigger('set_player_block_image', [g_qrImgUrl]);
-
-                // Send scanned QR dimensions to Pong game for dynamic sizing
-                //g_PongObj.$('body').trigger('resize_player_block',
-                //    [(result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
-                g_PongObj.trigger('resize_player_block', [(result.points[2].x - result.points[1].x) * ratios[X_DIM]]);
-
-                // Send player coordinates to the Pong game
-                //g_PongObj.$('body').trigger('externalMove', [x, y]);
-                g_PongObj.trigger('externalMove', [x, y]);
-            }
+            // Send player coordinates to the Pong game
+            encodedArray = JSON.stringify(['external_move_player_block', x, y]);
+            g_PongObj.postMessage(encodedArray, '*');
         }
     }
 
     // Purpose: Clear Pong player block's image with plain old color if no valid user was detected this frame via QR
     function onInvalidQRUserCurFrame(event) {
         if (g_PongObj != null) {
-            if (g_bRunInLocalCompatMode) {
-                g_PongObj.postMessage(JSON.stringify(['clear_player_block']), '*');
-            } else {
-                //g_PongObj.$('body').trigger('clear_player_block');
-                g_PongObj.trigger('clear_player_block');
-            }
+            g_PongObj.postMessage(JSON.stringify(['clear_player_block']), '*');
         }
     }
 
@@ -86,73 +61,31 @@ $(function () {
     function onQRStepsCompleted(event, qrImgUrl) {
         g_qrImgUrl = qrImgUrl;
 
-        if (g_bRunInLocalCompatMode === true) {
-            // Classical load failed. We load the fallback Pong game layer by setting a proper src...
-            $('#pong-game-html-fallback-wrapper').prop('src', 'JuegoPongCamara/index.html');
+        // We load the fallback Pong game layer by setting a proper src...
+        $('#pong-game-html-wrapper').prop('src', 'JuegoPongCamara/index.html');
 
-            // ...And wait for it to fully load
-            $('#pong-game-html-fallback-wrapper').on('load', function () {
-                // First, make it visible
-                $(this).css('visibility', 'visible');
-
-                g_PongObj = $(this)[0].contentWindow;
-
-                // Set Pong execution mode without self camera tracking (it will be done by this layer)
-                g_PongObj.postMessage(JSON.stringify(['set_external_camera_tracking']), '*');
-            });
-        } else {
-            // Classical load
-            $('#pong-game-html-wrapper').load('JuegoPongCamara/index.html', function () {
-                // First, make it visible
-                $(this).css('visibility', 'visible');
-
-                g_PongObj = $(this);
-                //handlePongVideoDimensions(g_PongObj.$('#video_camara').width(), g_PongObj.$('#video_camara').height());
-                handlePongVideoDimensions($('#video_camara').width(), $('#video_camara').height());
-
-                // Set Pong execution mode without self camera tracking (it will be done by this layer)
-                //g_PongObj.$('body').trigger('set_external_camera_tracking');
-                g_PongObj.trigger('set_external_camera_tracking');
-            });
-        }
-    }
-
-    function onQRAuthLayerLoaded(qrCanvasWidth, qrCanvasHeight) {
-        // Set the divisor in playbounds ratio, that is, the QR video dimensions
-        g_QrCaptureDims[X_DIM] = qrCanvasWidth;
-        g_QrCaptureDims[Y_DIM] = qrCanvasHeight;
-
-        // Listen for the distinct events that will be sent by the QR auth layer
-        $(document).on('qr_steps_completed', onQRStepsCompleted);
-        $(document).on('qr_user_detected', onQRUserDetected);
-        $(document).on('qr_user_invalid_or_undetected', onInvalidQRUserCurFrame);
-    }
-
-    // Try the classical load
-    $('#qr-auth-html-wrapper').load('qr-auth.html', function (responseText, textStatus) {
-        if (textStatus === "error") {
-            $('#denied-protocol-alert').html(g_CompatModeDisplay);
-            $('#denied-protocol-alert').show();
-
-            // We load the compat QR auth layer by setting a proper src...
-            $('#qr-auth-html-fallback-wrapper').prop('src', 'qr-auth.html');
-
-            // ...And wait for it to fully load
-            $('#qr-auth-html-fallback-wrapper').on('load', function () {
-                g_bRunInLocalCompatMode = true;
-
-                // First, make it visible
-                $(this).css('visibility', 'visible');
-            });
-        } else {
-            g_bRunInLocalCompatMode = false;
-
+        // ...And wait for it to fully load
+        $('#pong-game-html-wrapper').on('load', function () {
             // First, make it visible
             $(this).css('visibility', 'visible');
 
-            onQRAuthLayerLoaded($('#qr-canvas').width(), $('#qr-canvas').height());
-        }
-    });
+            g_PongObj = $(this)[0].contentWindow;
+
+            // Set Pong execution mode without self camera tracking (it will be done by this layer)
+            g_PongObj.postMessage(JSON.stringify(['set_external_camera_tracking']), '*');
+        });
+    }
+
+    function handleQRVideoDimensions(qrCanvasWidth, qrCanvasHeight) {
+        // Set the divisor in playbounds ratio, that is, the QR video dimensions
+        g_QrCaptureDims[X_DIM] = qrCanvasWidth;
+        g_QrCaptureDims[Y_DIM] = qrCanvasHeight;
+    }
+
+    if (window.location.href.indexOf('file:///') == 0) {
+        $('#denied-protocol-alert').html(g_CompatModeDisplay);
+        $('#denied-protocol-alert').show();
+    }
 
     $('#denied-protocol-alert').click(function () {
         $(this).toggle();
@@ -172,8 +105,8 @@ $(function () {
             case "pong_video_dimensions": {
                 handlePongVideoDimensions(dataArray[1], dataArray[2]);
                 break;
-            } case 'qr_auth_layer_loaded': {
-                onQRAuthLayerLoaded(dataArray[1], dataArray[2]);
+            } case 'qr_auth_video_dimensions': {
+                handleQRVideoDimensions(dataArray[1], dataArray[2]);
                 break;
             } case 'qr_steps_completed': {
                 onQRStepsCompleted(event, dataArray[1]);

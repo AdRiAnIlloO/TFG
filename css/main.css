@@ -7,19 +7,17 @@
     z-index: 1052;
 }
 
-#qr-auth-html-wrapper, #qr-auth-html-fallback-wrapper {
+#qr-auth-html-wrapper {
     height: 100%;
     width: 100%;
     position: absolute;
-    visibility: hidden; /* As both elements have the same z-index, hide both initially, draw later the first loaded */
     z-index: 1051;
 }
 
-/* Z-index will be set to place the view in front when the we load it */
-#pong-game-html-wrapper, #pong-game-html-fallback-wrapper {
+#pong-game-html-wrapper {
     height: 100%;
     width: 100%;
     position: absolute;
-    visibility: hidden; /* As both elements have the same z-index, hide both initially, draw later the first loaded */
+    visibility: hidden; /* As this element is placed more in front than QR authentication, hide it initially */
     z-index: 1052;
 }
