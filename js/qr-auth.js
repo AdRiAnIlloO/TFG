@@ -154,16 +154,13 @@ $(function () {
         }
     });
 
-    Instascan.Camera.getCameras().then(function (cameras) {
-        if (0 < cameras.length) {
-            let scanner = new Instascan.Scanner({
-                video: document.getElementById('preview'),
-                refractoryPeriod: 1
-            });
-
-            scanner.start(cameras[0]);
-        }
-    });
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(function (stream) {
+            $('#preview').prop('srcObject', stream);
+            $('#preview')[0].play();
+        }).catch(function (e) {
+            console.log(e.name + ": " + e.message);
+        });
 
     var $preview = $('#preview');
     var $qrCanvas = $('#qr-canvas');
