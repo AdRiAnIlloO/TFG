@@ -31,11 +31,10 @@ $(function () {
             case 'set_up_qr_generation': {
                 setUpQRGeneration(dataArray[1], dataArray[2]);
                 break;
-            } default: {
-                // In case not running iframe compatibility mode, other events are received here aswell, need to avoid
-                // setting the compatibility flag to true, as in below
-                return;
             }
         }
     }, false);
+
+    // This event ensures further postMessages will be always receiveable at this point
+    window.parent.postMessage(JSON.stringify(['qr-generation-ready']), '*');
 })

@@ -64,15 +64,10 @@ $(function () {
         // We load the fallback Pong game layer by setting a proper src...
         $('#pong-game-html-wrapper').prop('src', 'JuegoPongCamara/index.html');
 
-        // ...And wait for it to fully load
+        // ...And wait for it to partially load
         $('#pong-game-html-wrapper').on('load', function () {
             // First, make it visible
             $(this).css('visibility', 'visible');
-
-            g_PongObj = $(this)[0].contentWindow;
-
-            // Set Pong execution mode without self camera tracking (it will be done by this layer)
-            g_PongObj.postMessage(JSON.stringify(['set_external_camera_tracking']), '*');
         });
     }
 
@@ -104,6 +99,11 @@ $(function () {
         switch (name) {
             case "pong_video_dimensions": {
                 handlePongVideoDimensions(dataArray[1], dataArray[2]);
+                g_PongObj = $('#pong-game-html-wrapper')[0].contentWindow;
+
+                // Set Pong execution mode without self camera tracking (it will be done by this layer)
+                g_PongObj.postMessage(JSON.stringify(['set_external_camera_tracking']), '*');
+
                 break;
             } case 'qr_auth_video_dimensions': {
                 handleQRVideoDimensions(dataArray[1], dataArray[2]);

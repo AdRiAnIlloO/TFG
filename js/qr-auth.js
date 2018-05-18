@@ -10,9 +10,6 @@ var g_bDebug = false;
 // Authentications error, checked against null for advancing authentication form
 var g_AuthErrorMsg = null;
 
-// The QR welcome screen jQuery object, we load it only once the QR layer is completed by the user.
-var g_QrGenScreenObj = null;
-
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
         this.name = name;
@@ -115,32 +112,27 @@ $(function () {
         // This is required to allow user clicking in the next modal (generated QR welcome screen)
         $('#collapsible-capture-feedback').hide();
 
-        // We load the fallback welcome QR generation screen by setting a proper src...
+        // We load the fallback welcome QR generation screen by setting a proper src
         $('#qr-code-gen-html-wrapper').prop('src', 'qr-code-gen.html');
 
-        // ...And wait for it to fully load
-        $('#qr-code-gen-html-wrapper').on('load', function () {
-            g_QrGenScreenObj = $(this)[0].contentWindow;
+        window.addEventListener('message', function (event) {
+            var dataArray = JSON.parse(event.data);
+            var name = dataArray[0];
 
-            // Standard way to send messages to iframe?
-            // buildEncodedAuth is not serializable, send the encoded auth already
-            g_QrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
-                g_AuthedUser.buildEncodedAuth()]), '*');
-
-            // This function is necessary in order to forward desired events to parent from layers below
-            // current iframe view
-            window.addEventListener('message', function (event) {
-                var dataArray = JSON.parse(event.data);
-                var name = dataArray[0];
-
-                switch (name) {
-                    case 'qr_steps_completed': {
-                        window.parent.postMessage(event.data, '*');
-                        break;
-                    }
+            switch (name) {
+                case 'qr-generation-ready': {
+                    // buildEncodedAuth is not serializable, since it's a function. Send the encoded auth already:
+                    var qrGenScreenObj = $('#qr-code-gen-html-wrapper')[0].contentWindow;
+                    qrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
+                        g_AuthedUser.buildEncodedAuth()]), '*');
+                    break;
+                } case 'qr_steps_completed': {
+                    // Forward this event to the parent window from the layer below current iframe
+                    window.parent.postMessage(event.data, '*');
+                    break;
                 }
-            }, false);
-        });
+            }
+        }, false);
     }
 
     $('#auth-form').submit(function (event) {
