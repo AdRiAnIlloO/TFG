@@ -1,14 +1,21 @@
 // Use strict mode globally
 "use strict";
 
+// Heuristic timeout to consider video capture as stopped while not receiving any 'ontimeupdate' event of it
+// In normal conditions, 'ontimeupdate' is fired around each 250 ms as much
+const CANVAS_COPY_TIMEOUT_MS = 1000; // 1 second
+
 // Global authed User instance
 var g_AuthedUser = null;
+
+// Authentications error, checked against null for advancing authentication form
+var g_AuthErrorMsg = null;
 
 // Console logging?
 var g_bDebug = false;
 
-// Authentications error, checked against null for advancing authentication form
-var g_AuthErrorMsg = null;
+// Time in ms. after which to stop copying video to canvas
+var g_MsTimeToStopCanvasCopy = 0;
 
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
@@ -182,26 +189,32 @@ $(function () {
         } catch (error) {
             window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
         }
+
+        if (g_MsTimeToStopCanvasCopy > Date.now()) {
+            // This should call browser API function if it exists, or setTimeout otherwise (each 16 ms)
+            // One advantage of native function is callback is not fired when no animation is rendering in screen.
+            // This optimizations happens when being in a different tab, for example.
+            // This needs to be requested on each frame for the next one
+            _requestAnimationFrame(captureToCanvas_ScanQR);
+        } else {
+            console.log("Error: video element recently stopped receiving camera data");
+            window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
+        }
     }
 
-    $preview[0].addEventListener('play', function () {
+    $preview[0].onplay = function () {
         // Set up both internal canvas + outer visual necessary dimensions, proportional to original video
         var proportionalHeight = ($qrCanvas.width() * $preview.height() / $preview.width());
         $qrCanvas.prop('width', $qrCanvas.width());
         $qrCanvas.prop('height', proportionalHeight);
         $qrCanvas.height(proportionalHeight);
-        setInterval(captureToCanvas_ScanQR, 1);
-    });
+        g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
+        captureToCanvas_ScanQR();
+    };
 
-    $preview[0].addEventListener('pause', function () {
-        // If video pauses, stop QR process interval
-        clearInterval(captureToCanvas_ScanQR);
-    });
-
-    $preview[0].addEventListener('ended', function () {
-        // If video ends, stop QR process interval
-        clearInterval(captureToCanvas_ScanQR);
-    });
+    $preview[0].ontimeupdate = function () {
+        g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
+    };
 
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
     // This function respects possible User already authenticated, without overriding it

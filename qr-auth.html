@@ -9,7 +9,6 @@
     <!-- Include scripts in correct dependency order, to guarantee safety -->
     <script type="text/javascript" src="thirdparty/jquery.min.js"></script>
     <script type="text/javascript" src="thirdparty/bootstrap/js/bootstrap.min.js"></script>
-
     <!-- Import jsqrcode scripts. This library scans the QR codes -->
     <script type="text/javascript" src="thirdparty/jsqrcode/src/grid.js"></script>
     <script type="text/javascript" src="thirdparty/jsqrcode/src/version.js"></script>
@@ -31,6 +30,9 @@
 
     <!--h2non/jshashes library-->
     <script type="text/javascript" src="thirdparty/hashes.min.js"></script>
+
+    <!--jlmakes/rAF.js Gist slightly edited by me, for requestAnimationFrame abstraction -->
+    <script type="text/javascript" src="thirdparty/raf.js"></script>
 
     <script type="text/javascript" src="js/qr-auth.js"></script>
 </head>
@@ -67,7 +69,6 @@
 
     <!-- WebCam capture -->
     <video id="preview"></video>
-
     <div id="collapsible-capture-feedback" class="container">
         <div class="row justify-content-end">
             <!-- WebCam capture shadow, for scanning by jsqrcode library -->

@@ -20,6 +20,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "thirdparty", "thirdparty", "{958592F3-0741-433A-A36B-74B3E8726761}"
 	ProjectSection(SolutionItems) = preProject
 		thirdparty\hashes.min.js = thirdparty\hashes.min.js
+		thirdparty\raf.js = thirdparty\raf.js
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "jsqrcode", "jsqrcode", "{64FE90F0-2BB8-4B6D-98A1-02B1D29A5594}"
