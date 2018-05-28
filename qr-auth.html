@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <title>QR authentication</title>
     <link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="thirdparty/fontawesome-free/web-fonts-with-css/css/fontawesome-all.min.css" />
     <link rel="stylesheet" href="css/qr-auth.css" />
 
     <!-- Include scripts in correct dependency order, to guarantee safety -->
@@ -50,15 +51,38 @@
                         <input name="user" required pattern="[^ ]*" class="form-control" type="text" form="auth-form" />
                     </div>
                     <div class="form-group">
-                        <label class="col-form-label">Contrase&ntilde;a</label>
+                        <label class="col-form-label">Contrase&ntilde;a:</label>
                         <input name="pass" required class="form-control" type="password" form="auth-form" />
                     </div>
-                    <div id="auth-errors" class="alert alert-danger"></div>
+                    <div id="auth-errors" class="alert alert-danger" role="alert"></div>
                 </div>
                 <div class="modal-footer">
-                    <input id="login" class="btn btn-primary" type="submit" form="auth-form" value="Acceder" />
-                    <input id="register" class="btn btn-primary" type="submit" form="auth-form" value="Registrarse" />
-                    <form id="auth-form"></form>
+                    <div class="container">
+                        <div class="row">
+                            <div class="col col-sm-5">
+                                <input id="login" class="btn btn-block btn-primary" type="submit" form="auth-form"
+                                       value="Acceder" />
+                            </div>
+                            <div class="col col-sm-2">
+                                <form id="auth-form" />
+                            </div>
+                            <div class="col col-sm-5">
+                                <input id="register" class="btn btn-block btn-primary" type="submit" form="auth-form"
+                                       value="Registrarse" />
+                            </div>
+                        </div>
+                        <div class="row form-group"><!-- This is used to separate the other rows with a bit --></div>
+                        <div class="row">
+                            <!-- Reminder about alternative authentication via QR code -->
+                            <div class="alert alert-info text-center" role="alert">
+                                <i class="fas fa-info-circle fa-2x float-left"></i>
+                                <div>
+                                    ¿Ya tienes c&oacute;digo de autenticaci&oacute;n?
+                                    Mu&eacute;stralo a la c&aacute;mara para acceder
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -76,7 +100,8 @@
         </div>
         <div class="row justify-content-end">
             <button id="collapse-capture-btn" type="button" class="btn btn-secondary" data-toggle="button">
-                Ver captura en vivo
+                <i class="fas fa-expand fa-lg">&nbsp;</i>
+                <div class="float-right">Ver captura en vivo</div>
             </button>
         </div>
     </div>

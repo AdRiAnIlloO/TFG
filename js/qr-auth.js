@@ -163,17 +163,21 @@ $(function () {
 
     var $preview = $('#preview');
     var $qrCanvas = $('#qr-canvas');
-    var showLiveCaptureTxt = $('#collapse-capture-btn').html();
+    var showLiveCaptureTxt = $('#collapse-capture-btn div').html();
 
     // Modify the live capture user-interactable section
     $('#collapse-capture-btn').click(function () {
         $qrCanvas.toggle();
 
-        if ($qrCanvas.css('display') == 'none') {
-            $(this).html(showLiveCaptureTxt);
+        if ($qrCanvas.is(':hidden')) {
+            $(this).children('div').html(showLiveCaptureTxt);
         } else {
-            $(this).html('Ocultar captura en vivo');
+            $(this).children('div').html('Ocultar captura en vivo');
         }
+
+        // Set appropiate icon
+        $(this).children('i').first().toggleClass('fa-expand');
+        $(this).children('i').first().toggleClass('fa-compress');
     });
 
     // Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
@@ -270,6 +274,5 @@ $(function () {
     //////////////////////////////////////////////////////////////////////
 
     // Inform the main layer of the QR video dimensions
-    window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions', $('#qr-canvas').width(),
-        $('#qr-canvas').height()]), '*');
+    window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions', $qrCanvas.width(), $qrCanvas.height()]), '*');
 })
