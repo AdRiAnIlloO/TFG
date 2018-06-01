@@ -55,20 +55,16 @@ $(function () {
 
             // Step 2: Prepare vectors of both QR box sides
             let vecQRSides = [
-                // Vector between top left - top right point (as if QR code was aligned with camera).
+                // Vector between top right - top left point (as if QR code was aligned with camera).
                 // This one is used to calc angle later.
                 [
-                    (topLeftPoint.x - topRightPoint.x)
-                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO,
-                    ( topLeftPoint.y - topRightPoint.y)
-                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO
+                    (topLeftPoint.x - topRightPoint.x),
+                    (topRightPoint.y - topLeftPoint.y)
                 ],
-                // Vector between top left - bottom left point, when placed right
+                // Vector between bottom left - top left point, when placed right
                 [
-                    (topLeftPoint.x - bottomLeftPoint.x)
-                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO,
-                    (topLeftPoint.y - bottomLeftPoint.y)
-                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO
+                    (topLeftPoint.x - bottomLeftPoint.x),
+                    (bottomLeftPoint.y - topLeftPoint.y)
                 ]
             ];
 
@@ -103,8 +99,8 @@ $(function () {
             // the shared center (half AABB sides), the prerotated QR box length
             // of horizontal and vertical sides, and the rotation of it
             var encodedArray = JSON.stringify(['transform_player_block_from_qr',
-                g_qrImgUrl, centralPoint, collisionBoxSidesLength,
-                qrSidesLength, qrRotation]);
+                isInMirrorMode, g_qrImgUrl, centralPoint,
+                collisionBoxSidesLength, qrSidesLength, qrRotation]);
             g_PongObj.postMessage(encodedArray, '*');
         }
     }
