@@ -55,54 +55,55 @@ $(function () {
 
             // Step 2: Prepare vectors of both QR box sides
             let vecQRSides = [
-                // Vector between top right - top left point, when placed right.
+                // Vector between top left - top right point (as if QR code was aligned with camera).
                 // This one is used to calc angle later.
                 [
-                    (topRightPoint.x - topLeftPoint.x),
-                    (topRightPoint.y - topLeftPoint.y)
+                    (topLeftPoint.x - topRightPoint.x)
+                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO,
+                    ( topLeftPoint.y - topRightPoint.y)
+                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO
                 ],
                 // Vector between top left - bottom left point, when placed right
                 [
-                    (topLeftPoint.x - bottomLeftPoint.x),
+                    (topLeftPoint.x - bottomLeftPoint.x)
+                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO,
                     (topLeftPoint.y - bottomLeftPoint.y)
+                    * QR_SIDE_TO_INTERPOINTS_DIST_RATIO
                 ]
             ];
 
-            // Step 3: Calc the length of the inner QR box's sides
+            if (isInMirrorMode) {
+                // Mirror mode inverts horizontal dimension.
+                // Adjust this to calc correct rotation.
+                vecQRSides[0][X_DIM] *= -1;
+            }
+
+            // Step 3: Calc inner QR box's rotation
+            let qrRotation = Math.atan2(
+                vecQRSides[0][Y_DIM], vecQRSides[0][X_DIM]
+            );
+
+            // ...and the length of its sides (horizontal & vertical, if QR code was aligned with camera)
+            // The length results should always be positive
             let qrSidesLength = [
-                // Pre-rotated horizontal QR side length
-                Math.sqrt(
-                    Math.pow(vecQRSides[0][X_DIM], 2)
-                    + Math.pow(vecQRSides[0][Y_DIM], 2)
-                ) * QR_SIDE_TO_INTERPOINTS_DIST_RATIO,
-                // Pre-rotated vertical QR side vector
-                Math.sqrt(
-                    Math.pow(vecQRSides[1][X_DIM], 2)
-                    + Math.pow(vecQRSides[1][Y_DIM], 2)
-                ) * QR_SIDE_TO_INTERPOINTS_DIST_RATIO
+                vecQRSides[0][X_DIM] / Math.cos(qrRotation),
+                vecQRSides[1][X_DIM] / Math.cos(
+                    Math.atan2(vecQRSides[1][Y_DIM], vecQRSides[1][X_DIM])
+                )
             ];
 
-            // Step 4: Calc the top left point of AABB collision box. Since the
-            // captured QR code may have any angle, the minimum point could be any.
-            let topLeftPointOfCollisionBox = [
-                Math.min(bottomLeftPoint.x, topLeftPoint.x, topRightPoint.x),
-                Math.min(bottomLeftPoint.y, topLeftPoint.y, topRightPoint.y)
+            // Step 4: Calc side lengths of the AABB box
+            let collisionBoxSidesLength = [
+                Math.abs(vecQRSides[0][X_DIM]) + Math.abs(vecQRSides[1][X_DIM]),
+                Math.abs(vecQRSides[0][Y_DIM]) + Math.abs(vecQRSides[1][Y_DIM])
             ];
-
-            let centralPointOffsets = [
-                centralPoint[X_DIM] - topLeftPointOfCollisionBox[X_DIM],
-                centralPoint[Y_DIM] - topLeftPointOfCollisionBox[Y_DIM]
-            ];
-
-            let qrRotation = Math.atan2(vecQRSides[0][Y_DIM],
-                vecQRSides[0][X_DIM]);
 
             // Pong needs the following data: the QR image URL, the closest
             // point of AABB to the screen origin (top left), the distances to
             // the shared center (half AABB sides), the prerotated QR box length
             // of horizontal and vertical sides, and the rotation of it
             var encodedArray = JSON.stringify(['transform_player_block_from_qr',
-                g_qrImgUrl, topLeftPointOfCollisionBox, centralPointOffsets,
+                g_qrImgUrl, centralPoint, collisionBoxSidesLength,
                 qrSidesLength, qrRotation]);
             g_PongObj.postMessage(encodedArray, '*');
         }
