@@ -28,7 +28,7 @@ img {
 
 #qr-canvas {
     display: none;
-    width: 200px; /* Fix a width, let height be calculated later */
+    width: 200px; /* Use a reasonable small width to preserve window space. Height will be dynamically set later. */
 }
 
 #qr-code-gen-html-wrapper {

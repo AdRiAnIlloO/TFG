@@ -153,14 +153,6 @@ $(function () {
         }
     });
 
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(function (stream) {
-            $('#preview').prop('srcObject', stream);
-            $('#preview')[0].play();
-        }).catch(function (e) {
-            console.log(e.name + ": " + e.message);
-        });
-
     var $preview = $('#preview');
     var $qrCanvas = $('#qr-canvas');
     var showLiveCaptureTxt = $('#collapse-capture-btn div').html();
@@ -207,11 +199,6 @@ $(function () {
     }
 
     $preview[0].onplay = function () {
-        // Set up both internal canvas + outer visual necessary dimensions, proportional to original video
-        var proportionalHeight = ($qrCanvas.width() * $preview.height() / $preview.width());
-        $qrCanvas.prop('width', $qrCanvas.width());
-        $qrCanvas.prop('height', proportionalHeight);
-        $qrCanvas.height(proportionalHeight);
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
         captureToCanvas_ScanQR();
     };
@@ -219,6 +206,33 @@ $(function () {
     $preview[0].ontimeupdate = function () {
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
     };
+
+    // Init video, in the hope that a natural camera resolution will be used
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(function (stream) {
+            let settings = stream.getTracks()[0].getSettings();
+            let captureWidth = settings.width;
+            let captureHeight = settings.height;
+
+            // We copy the resulting capture height to the canvas height.
+            // Using dimensions to natural resolution makes QR detection faster.
+            let canvasWidth = $qrCanvas.width();
+            let canvasHeight = canvasWidth * captureHeight / captureWidth;
+            $qrCanvas.prop('height', canvasHeight);
+
+            // Copy it to the CSS too, it's necessary to keep canvas working when
+            // this view (QR authentication) is placed behind other view via z-index
+            $qrCanvas.height(canvasHeight);
+
+            // Inform the main layer of the QR video dimensions
+            window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions',
+                canvasWidth, canvasHeight]), '*');
+
+            $('#preview').prop('srcObject', stream);
+            $('#preview')[0].play();
+        }).catch(function (e) {
+            console.log(e.name + ": " + e.message);
+        });
 
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
     // This function respects possible User already authenticated, without overriding it
@@ -272,7 +286,4 @@ $(function () {
     //////////////////////////////////////////////////////////////////////
     ////////////               Iframe fallbacks               ////////////
     //////////////////////////////////////////////////////////////////////
-
-    // Inform the main layer of the QR video dimensions
-    window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions', $qrCanvas.width(), $qrCanvas.height()]), '*');
 })
