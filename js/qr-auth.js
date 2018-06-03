@@ -12,7 +12,7 @@ var g_AuthedUser = null;
 var g_AuthErrorMsg = null;
 
 // Console logging?
-var g_bDebug = false;
+var g_isInDebug = false;
 
 // Time in ms. after which to stop copying video to canvas
 var g_MsTimeToStopCanvasCopy = 0;
@@ -217,7 +217,7 @@ $(function () {
             // We copy the resulting capture height to the canvas height.
             // Using dimensions to natural resolution makes QR detection faster.
             let canvasWidth = $qrCanvas.width();
-            let canvasHeight = canvasWidth * captureHeight / captureWidth;
+            let canvasHeight = canvasWidth / settings.aspectRatio;
             $qrCanvas.prop('height', canvasHeight);
 
             // Copy it to the CSS too, it's necessary to keep canvas working when
@@ -226,7 +226,7 @@ $(function () {
 
             // Inform the main layer of the QR video dimensions
             window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions',
-                canvasWidth, canvasHeight]), '*');
+                settings.aspectRatio, canvasWidth, canvasHeight]), '*');
 
             $('#preview').prop('srcObject', stream);
             $('#preview')[0].play();
@@ -237,15 +237,21 @@ $(function () {
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
     // This function respects possible User already authenticated, without overriding it
     qrcode.callback = function (result) {
-        if (g_bDebug) {
+        if (g_isInDebug) {
             console.log("Scanned QR code decoded string = " + result.decodedStr);
 
             var context = $qrCanvas[0].getContext('2d');
-            context.beginPath();
             context.arc(result.points[0].x, result.points[0].y, 5, 0, 2 * Math.PI);
+            context.fillStyle = "yellow";
+            context.fill();
+            context.beginPath();
             context.arc(result.points[1].x, result.points[1].y, 5, 0, 2 * Math.PI);
+            context.fillStyle = "orange";
+            context.fill();
+            context.beginPath();
             context.arc(result.points[2].x, result.points[2].y, 5, 0, 2 * Math.PI);
-            context.stroke();
+            context.fillStyle = "red";
+            context.fill();
             return;
         }
 
