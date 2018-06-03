@@ -100,7 +100,8 @@ $(function () {
             // of horizontal and vertical sides, and the rotation of it
             var encodedArray = JSON.stringify(['transform_player_block_from_qr',
                 isInMirrorMode, g_qrImgUrl, centralPoint,
-                collisionBoxSidesLength, qrSidesLength, qrRotation]);
+                collisionBoxSidesLength, qrSidesLength, qrRotation,
+                bottomLeftPoint, topLeftPoint, topRightPoint]);
             g_PongObj.postMessage(encodedArray, '*');
         }
     }
