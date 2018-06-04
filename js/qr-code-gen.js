@@ -36,5 +36,5 @@ $(function () {
     }, false);
 
     // This event ensures further postMessages will be always receiveable at this point
-    window.parent.postMessage(JSON.stringify(['qr-generation-ready']), '*');
+    window.parent.postMessage(JSON.stringify(['qr_generation_ready']), '*');
 })

@@ -127,7 +127,7 @@ $(function () {
             var name = dataArray[0];
 
             switch (name) {
-                case 'qr-generation-ready': {
+                case 'qr_generation_ready': {
                     // buildEncodedAuth is not serializable, since it's a function. Send the encoded auth already:
                     var qrGenScreenObj = $('#qr-code-gen-html-wrapper')[0].contentWindow;
                     qrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
