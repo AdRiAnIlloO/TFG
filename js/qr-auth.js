@@ -207,32 +207,58 @@ $(function () {
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
     };
 
-    // Init video, in the hope that a natural camera resolution will be used
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(function (stream) {
-            let settings = stream.getTracks()[0].getSettings();
-            let captureWidth = settings.width;
-            let captureHeight = settings.height;
+    // Fallback function for usage on older getUserMedia APIs
+    function onCameraSuccess(stream) {
+        let settings = stream.getTracks()[0].getSettings();
+        let captureWidth = settings.width;
+        let captureHeight = settings.height;
 
-            // We copy the resulting capture height to the canvas height.
-            // Using dimensions to natural resolution makes QR detection faster.
-            let canvasWidth = $qrCanvas.width();
-            let canvasHeight = canvasWidth / settings.aspectRatio;
-            $qrCanvas.prop('height', canvasHeight);
+        // We copy the resulting capture height to the canvas height.
+        // Using dimensions to natural resolution makes QR detection faster.
+        let canvasWidth = $qrCanvas.width();
+        let canvasHeight = canvasWidth / settings.aspectRatio;
+        $qrCanvas.prop('height', canvasHeight);
 
-            // Copy it to the CSS too, it's necessary to keep canvas working when
-            // this view (QR authentication) is placed behind other view via z-index
-            $qrCanvas.height(canvasHeight);
+        // Copy it to the CSS too, it's necessary to keep canvas working when
+        // this view (QR authentication) is placed behind other view via z-index
+        $qrCanvas.height(canvasHeight);
 
-            // Inform the main layer of the QR video dimensions
-            window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions',
-                settings.aspectRatio, canvasWidth, canvasHeight]), '*');
+        // Inform the main layer of the QR video dimensions
+        window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions',
+            settings.aspectRatio, canvasWidth, canvasHeight]), '*');
 
+        // Assign the stream to the video. Provide fallback for older APIs.
+        if (typeof($('#preview').prop('srcObject')) === 'object') {
             $('#preview').prop('srcObject', stream);
-            $('#preview')[0].play();
-        }).catch(function (e) {
-            console.log(e.name + ": " + e.message);
-        });
+        } else {
+            $('#preview').prop('src', URL.createObjectURL(stream));
+        }
+
+        $('#preview')[0].play();
+    }
+
+    // Fallback function for usage on older getUserMedia APIs
+    function onCameraError(error) {
+        console.log(error.name + ": " + error.message);
+    }
+
+    // Giving preference to newest API.
+    // Correct prefix needs to be used to prevent context error (tested).
+    let prefix = navigator.mediaDevices || navigator;
+
+    // NOTE: It'd be a syntax error making a new variable out of a property.
+    // Simply re-assign the existing property to the compatible API:
+    prefix.getUserMedia = prefix.getUserMedia || prefix.mozGetUserMedia
+        || prefix.webkitGetUserMedia || prefix.msGetUserMedia;
+
+    // Init video, in the hope that a natural camera resolution will be used
+    let retVal = prefix.getUserMedia({ video: true, audio: false },
+        onCameraSuccess, onCameraError);
+
+    if (typeof(retVal) == 'object') {
+        // Assumme returned value is a Promise from the newest getUserMedia API
+        retVal.then(onCameraSuccess).catch(onCameraError);
+    }
 
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
     // This function respects possible User already authenticated, without overriding it
