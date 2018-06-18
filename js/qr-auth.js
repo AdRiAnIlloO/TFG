@@ -198,13 +198,9 @@ $(function () {
         }
     }
 
-    $preview[0].onplay = function () {
-        g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
-        captureToCanvas_ScanQR();
-    };
-
     $preview[0].ontimeupdate = function () {
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
+        captureToCanvas_ScanQR();
     };
 
     // Fallback function for usage on older getUserMedia APIs
