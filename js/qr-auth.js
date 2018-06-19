@@ -190,7 +190,7 @@ $(function () {
             // This should call browser API function if it exists, or setTimeout otherwise (each 16 ms)
             // One advantage of native function is callback is not fired when no animation is rendering in screen.
             // This optimizations happens when being in a different tab, for example.
-            // This needs to be requested on each frame for the next one
+            // This needs to be requested on each frame (ONCE) for the next one
             _requestAnimationFrame(captureToCanvas_ScanQR);
         } else {
             console.log("Error: video element recently stopped receiving camera data");
@@ -198,10 +198,20 @@ $(function () {
         }
     }
 
-    $preview[0].ontimeupdate = function () {
+    function delayCanvasCopyTimeout() {
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
+    }
+
+    $preview[0].ontimeupdate = function() {
+        // Start Canvas QR process
+        delayCanvasCopyTimeout();
         captureToCanvas_ScanQR();
-    };
+
+        // From now on, make ontimeupdate callback only delays the timeout.
+        // If we don't change it, _requestAnimationFrame causes lag, appearently
+        // duplicating its callback on same frames.
+        $preview[0].ontimeupdate = delayCanvasCopyTimeout;
+    }
 
     // Fallback function for usage on older getUserMedia APIs
     function onCameraSuccess(stream) {
