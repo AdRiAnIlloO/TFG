@@ -157,6 +157,61 @@ $(function () {
     var $qrCanvas = $('#qr-canvas');
     var showLiveCaptureTxt = $('#collapse-capture-btn div').html();
 
+    function onAuthQrPhotoLoaded(image) {
+        // Set up a new temporary Canvas for scanning
+        let $photoCanvas = $('<canvas id="qr-canvas">');
+        $photoCanvas.prop('width', image.width);
+        $photoCanvas.prop('height', image.height);
+        $('body').append($photoCanvas);
+        let context = $photoCanvas[0].getContext('2d');
+        context.drawImage(image, 0, 0);
+
+        // Temporary disable the video QR Canvas for scanning
+        $qrCanvas.prop('id', null); // NOTE: 'undefined' causes no change
+
+        try {
+            // jsqrcode specific code
+            qrcode.decode();
+        } catch {
+        } finally {
+            // Remove photo Canvas and restore the video QR Canvas for scanning.
+            $photoCanvas.remove();
+            $qrCanvas.prop('id', 'qr-canvas');
+        }
+    }
+
+    function processAuthQrPhotoFile(dataUrl, fileType) {
+        let image = new Image();
+        image.src = dataUrl;
+
+        image.onload = function() {
+            onAuthQrPhotoLoaded(image);
+        };
+    }
+
+    function readAuthQrPhotoFile(file) {
+        let reader = new FileReader();
+
+        reader.onloadend = function() {
+            processAuthQrPhotoFile(reader.result, file.type);
+    	}
+
+    	reader.onerror = function() {
+            console.log("Error: failed to read uploaded QR authentication photo file. "
+                + reader.error);
+    	}
+
+    	reader.readAsDataURL(file);
+    }
+
+    $('#image-upload-input').change(function(event) {
+        let file = event.target.files[0];
+
+        if (file != null) {
+            readAuthQrPhotoFile(file);
+        }
+    });
+
     // Modify the live capture user-interactable section
     $('#collapse-capture-btn').click(function () {
         $qrCanvas.toggle();
