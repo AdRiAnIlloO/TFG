@@ -157,6 +157,38 @@ $(function () {
     var $qrCanvas = $('#qr-canvas');
     var showLiveCaptureTxt = $('#collapse-capture-btn div').html();
 
+    // This function respects possible User already authenticated, without overriding it
+    function authenticateUserFromDecodedString(decodedString) {
+        var auxUser = new User(null, null, decodedString);
+
+        // Are we in a live user session already?
+        if (g_AuthedUser != null) {
+            // Yes. Credentials of checked QR user must match with the session user's.
+            if (auxUser.passHash !== g_AuthedUser.passHash) {
+                // Full credentials are incorrect
+                throw 'qr_user_invalid';
+            }
+        } else {
+            // No live session is active. Search for a registered user with that name.
+            var foundUser = findSessionUserByName(auxUser.name);
+
+            if (foundUser == null) {
+                // No registered user found with that name
+                return 'qr_user_undetected';
+            }
+
+            if (foundUser.passHash !== auxUser.passHash) {
+                // Full credentials are incorrect
+                return 'qr_user_invalid';
+            }
+
+            // Pass user authentication via QR
+            g_AuthErrorMsg = null;
+            g_AuthedUser = auxUser;
+            onUserAuthenticated();
+        }
+    }
+
     function onAuthQrPhotoLoaded(image) {
         // Set up a new temporary Canvas for scanning
         let $photoCanvas = $('<canvas id="qr-canvas">');
@@ -166,18 +198,29 @@ $(function () {
         let context = $photoCanvas[0].getContext('2d');
         context.drawImage(image, 0, 0);
 
-        // Temporary disable the video QR Canvas for scanning
-        $qrCanvas.prop('id', null); // NOTE: 'undefined' causes no change
+        JOB.SetImageCallback(function(result) {
+            if (result.length > 0) {
+                console.log("Scanned 1D barcode type = " + result[0].Format
+                    + ". Decoded string = " + result[0].Value + ".");
+                authenticateUserFromDecodedString(result[0].Value);
+            } else { // Fallback to jsqrcode library
+                // Temporary disable the video QR Canvas for scanning
+                $qrCanvas.prop('id', null); // NOTE: 'undefined' causes no change
 
-        try {
-            // jsqrcode specific code
-            qrcode.decode();
-        } catch {
-        } finally {
-            // Remove photo Canvas and restore the video QR Canvas for scanning.
-            $photoCanvas.remove();
-            $qrCanvas.prop('id', 'qr-canvas');
-        }
+                try {
+                    // jsqrcode specific code
+                    qrcode.decode();
+                } catch (error) {
+                    console.log("Error: failed to decode uploaded QR authentication photo file.");
+                } finally {
+                    // Remove photo Canvas and restore the video QR Canvas for scanning.
+                    $photoCanvas.remove();
+                    $qrCanvas.prop('id', 'qr-canvas');
+                }
+            }
+        });
+
+        JOB.DecodeImage(image);
     }
 
     function processAuthQrPhotoFile(dataUrl, fileType) {
@@ -194,14 +237,14 @@ $(function () {
 
         reader.onloadend = function() {
             processAuthQrPhotoFile(reader.result, file.type);
-    	}
+        }
 
-    	reader.onerror = function() {
+        reader.onerror = function() {
             console.log("Error: failed to read uploaded QR authentication photo file. "
                 + reader.error);
-    	}
+        }
 
-    	reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
     }
 
     $('#image-upload-input').click(function() {
@@ -327,7 +370,6 @@ $(function () {
     }
 
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
-    // This function respects possible User already authenticated, without overriding it
     qrcode.callback = function (result) {
         if (g_isInDebug) {
             console.log("Scanned QR code decoded string = " + result.decodedStr);
@@ -347,41 +389,34 @@ $(function () {
             return;
         }
 
-        var auxUser = new User(null, null, result.decodedStr);
-
-        // Are we in a live user session already?
-        if (g_AuthedUser != null) {
-            // Yes. Credentials of checked QR user must match with the session user's.
-            if (auxUser.passHash !== g_AuthedUser.passHash) {
-                // Full credentials are incorrect
-                throw 'qr_user_invalid';
-            }
-        } else {
-            // No live session is active. Search for a registered user with that name.
-            var foundUser = findSessionUserByName(auxUser.name);
-
-            if (foundUser == null) {
-                // No registered user found with that name
-                throw 'qr_user_undetected';
-            }
-
-            if (foundUser.passHash !== auxUser.passHash) {
-                // Full credentials are incorrect
-                throw 'qr_user_invalid';
-            }
-
-            // Pass user authentication via QR
-            g_AuthErrorMsg = null;
-            g_AuthedUser = auxUser;
-            onUserAuthenticated();
-        }
+        authenticateUserFromDecodedString(result.decodedStr);
 
         // Send message about that an existing user was detected and validated in this frame via QR.
         // Pay special attention that data must be wrapped in an array.
         window.parent.postMessage(JSON.stringify(['qr_user_detected', result]), '*');
     };
 
-    //////////////////////////////////////////////////////////////////////
-    ////////////               Iframe fallbacks               ////////////
-    //////////////////////////////////////////////////////////////////////
+    // Is DecoderWorker invalid still?
+    let decoderWorker = null;
+
+    try {
+        // Try load correct located decoder Worker (may fail under cross-origin)
+        decoderWorker = new Worker("thirdparty/JOB/exif.js");
+
+        // Call mandatory EddieLa/JOB library function, as author states
+        JOB.Init(decoderWorker, "thirdparty/JOB/exif.js");
+    } catch {
+        // Attempt to load the content of remote script
+        $.get("https://eddiela.github.io/JOB/DecoderWorker.js", function(data) {
+            // Allocate Worker from the data and via URL BLOB
+            decoderWorker = new Worker(URL.createObjectURL(
+                new Blob([data], {
+                    type: 'text/javascript'
+                })
+            ));
+
+            // Call mandatory EddieLa/JOB library function, as author states
+            JOB.Init(decoderWorker, "thirdparty/JOB/exif.js");
+        });
+    }
 })
