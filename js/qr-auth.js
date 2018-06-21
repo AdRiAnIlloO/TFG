@@ -305,7 +305,12 @@ $(function () {
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
     }
 
+    let cameraInitializationMsTime0;
+
     $preview[0].ontimeupdate = function() {
+        console.log("Camera image took " + (Date.now() - cameraInitializationMsTime0)
+            + "ms to initialize");
+
         // Start Canvas QR process
         delayCanvasCopyTimeout();
         captureToCanvas_ScanQR();
@@ -343,6 +348,7 @@ $(function () {
             $('#preview').prop('src', URL.createObjectURL(stream));
         }
 
+        cameraInitializationMsTime0 = Date.now();
         $('#preview')[0].play();
     }
 
