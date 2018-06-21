@@ -204,6 +204,11 @@ $(function () {
     	reader.readAsDataURL(file);
     }
 
+    $('#image-upload-input').click(function() {
+         // Allow to detect consecutive re-uploaded files with same name
+        $(this).val("");
+    });
+
     $('#image-upload-input').change(function(event) {
         let file = event.target.files[0];
 
