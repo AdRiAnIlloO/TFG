@@ -18,7 +18,7 @@ var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los ar
 var g_qrImgUrl = null;
 
 $(function () {
-    function onQRUserDetected(event, result) {
+    function onQRUserDetected(event, userSessionSlot, result) {
         if (g_PongObj != null) {
             let bottomLeftPoint = result.points[0],
                 topLeftPoint = result.points[1],
@@ -36,7 +36,7 @@ $(function () {
 
             // Send event to Pong with the data it needs for transformations
             var encodedArray = JSON.stringify(['transform_player_block_from_qr',
-                isInMirrorMode, g_qrImgUrl, g_QrCaptureAspectRatio,
+                userSessionSlot, isInMirrorMode, g_qrImgUrl, g_QrCaptureAspectRatio,
                 g_QrCaptureDims, bottomLeftPoint, topLeftPoint,
                 topRightPoint]);
             g_PongObj.postMessage(encodedArray, '*');
@@ -90,7 +90,13 @@ $(function () {
         var name = dataArray[0];
 
         switch (name) {
-            case "pong_game_loaded": {
+            case 'add_session_user_slot': {
+                $('#qr-auth-html-wrapper')[0].contentWindow.postMessage(
+                    JSON.stringify([name]), '*'
+                );
+                break;
+            }
+            case 'pong_game_loaded': {
                 g_PongObj = $('#pong-game-html-wrapper')[0].contentWindow;
 
                 // Set Pong execution mode without self camera tracking (it will be done by this layer)
@@ -105,7 +111,7 @@ $(function () {
                 onQRStepsCompleted(event, dataArray[1]);
                 break;
             } case 'qr_user_detected': {
-                onQRUserDetected(event, dataArray[1]);
+                onQRUserDetected(event, dataArray[1], dataArray[2]);
                 break;
             } case 'qr_user_invalid_or_undetected': {
                 onInvalidQRUserCurFrame(event);

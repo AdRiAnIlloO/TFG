@@ -5,8 +5,10 @@
 // In normal conditions, 'ontimeupdate' is fired around each 250 ms as much
 const CANVAS_COPY_TIMEOUT_MS = 1000; // 1 second
 
-// Global authed User instance
-var g_AuthedUser = null;
+let g_MaxSessionUserSlots = 1;
+
+// Global registered and in-session users
+let g_AuthedUsers = [];
 
 // Authentications error, checked against null for advancing authentication form
 var g_AuthErrorMsg = null;
@@ -54,7 +56,7 @@ function addSessionUser(user) {
 }
 
 // Returns a registered User instance whose name matches the parameter, null if not found
-function findSessionUserByName(name) {
+function findRegisteredUserByName(name) {
     var users = getSessionUsers();
     var foundUser = null;
 
@@ -78,13 +80,13 @@ $(function () {
 
     if (hasLocalStorage()) {
         $('#login').click(function () {
-            var jsonUser = findSessionUserByName($('input[name=user]').val());
+            var jsonUser = findRegisteredUserByName($('input[name=user]').val());
 
             if (jsonUser != null) {
                 var auxUser = new User(jsonUser.name, $('input[name=pass]').val());
 
                 if (auxUser.passHash == jsonUser.passHash) {
-                    g_AuthedUser = auxUser;
+                    g_AuthedUsers.push(auxUser);
                     g_AuthErrorMsg = null;
                 } else {
                     g_AuthErrorMsg = "Error de acceso: credenciales inválidas";
@@ -93,16 +95,17 @@ $(function () {
                 g_AuthErrorMsg = "Error de acceso: usuario no registrado";
             }
 
-            // To prevent submit action-chain from executing, return false
+            // NOTE: To prevent submit action-chain from executing, return false
         });
 
         $('#register').click(function () {
             var inputName = $('input[name=user]').val();
-            g_AuthedUser = findSessionUserByName(inputName);
+            let registeredUser = findRegisteredUserByName(inputName);
 
-            if (g_AuthedUser == null) {
-                g_AuthedUser = new User(inputName, $('input[name=pass]').val());
-                addSessionUser(g_AuthedUser);
+            if (registeredUser == null) {
+                registeredUser = new User(inputName, $('input[name=pass]').val());
+                g_AuthedUsers.push(registeredUser);
+                addSessionUser(registeredUser);
                 g_AuthErrorMsg = null;
             } else {
                 g_AuthErrorMsg = "Error de acceso: usuario ya existente";
@@ -113,7 +116,7 @@ $(function () {
     }
 
     // This is called for both form authentications and QR scans access.
-    function onUserAuthenticated() {
+    function onMainUserAuthenticated() {
         $('#auth-popup').modal('hide');
 
         // This is required to allow user clicking in the next modal (generated QR welcome screen)
@@ -121,26 +124,32 @@ $(function () {
 
         // We load the fallback welcome QR generation screen by setting a proper src
         $('#qr-code-gen-html-wrapper').prop('src', 'qr-code-gen.html');
-
-        window.addEventListener('message', function (event) {
-            var dataArray = JSON.parse(event.data);
-            var name = dataArray[0];
-
-            switch (name) {
-                case 'qr_generation_ready': {
-                    // buildEncodedAuth is not serializable, since it's a function. Send the encoded auth already:
-                    var qrGenScreenObj = $('#qr-code-gen-html-wrapper')[0].contentWindow;
-                    qrGenScreenObj.postMessage(JSON.stringify(['set_up_qr_generation', g_AuthedUser.name,
-                        g_AuthedUser.buildEncodedAuth()]), '*');
-                    break;
-                } case 'qr_steps_completed': {
-                    // Forward this event to the parent window from the layer below current iframe
-                    window.parent.postMessage(event.data, '*');
-                    break;
-                }
-            }
-        }, false);
     }
+
+    window.addEventListener('message', function (event) {
+        var dataArray = JSON.parse(event.data);
+        var name = dataArray[0];
+
+        switch (name) {
+            case 'add_session_user_slot': {
+                g_MaxSessionUserSlots++;
+                break;
+            } case 'qr_generation_ready': {
+                // buildEncodedAuth is not serializable, since it's a function. Send the encoded auth already:
+                var qrGenScreenObj = $('#qr-code-gen-html-wrapper')[0].contentWindow;
+
+                // Here, only pass the main User, which should be the first in session users
+                qrGenScreenObj.postMessage(JSON.stringify([
+                    'set_up_qr_generation', g_AuthedUsers[0].name,
+                    g_AuthedUsers[0].buildEncodedAuth()]), '*');
+                break;
+            } case 'qr_steps_completed': {
+                // Forward this event to the parent window from the layer below current iframe
+                window.parent.postMessage(event.data, '*');
+                break;
+            }
+        }
+    }, false);
 
     $('#auth-form').submit(function (event) {
         event.preventDefault(); // Prevent reload page (always)
@@ -149,7 +158,7 @@ $(function () {
             $('#auth-errors').show();
             $('#auth-errors').html(g_AuthErrorMsg);
         } else {
-            onUserAuthenticated();
+            onMainUserAuthenticated();
         }
     });
 
@@ -157,36 +166,47 @@ $(function () {
     var $qrCanvas = $('#qr-canvas');
     var showLiveCaptureTxt = $('#collapse-capture-btn div').html();
 
-    // This function respects possible User already authenticated, without overriding it
+    // This function first looks at the already logged in users, then at the
+    // registered users, except if the session slots are full, where it stops.
+    // Output: index of User in the session Users (-1 if failed)
     function authenticateUserFromDecodedString(decodedString) {
-        var auxUser = new User(null, null, decodedString);
+        var decodedUser = new User(null, null, decodedString);
 
-        // Are we in a live user session already?
-        if (g_AuthedUser != null) {
-            // Yes. Credentials of checked QR user must match with the session user's.
-            if (auxUser.passHash !== g_AuthedUser.passHash) {
-                // Full credentials are incorrect
-                throw 'qr_user_invalid';
+        for (let i in g_AuthedUsers) {
+            if (g_AuthedUsers[i].name === decodedUser.name) {
+                if (decodedUser.passHash !== g_AuthedUsers[i].passHash) {
+                    return -1;
+                }
+
+                // Pass user authentication via decoded string
+                g_AuthErrorMsg = null;
+                return i;
             }
-        } else {
-            // No live session is active. Search for a registered user with that name.
-            var foundUser = findSessionUserByName(auxUser.name);
-
-            if (foundUser == null) {
-                // No registered user found with that name
-                return 'qr_user_undetected';
-            }
-
-            if (foundUser.passHash !== auxUser.passHash) {
-                // Full credentials are incorrect
-                return 'qr_user_invalid';
-            }
-
-            // Pass user authentication via QR
-            g_AuthErrorMsg = null;
-            g_AuthedUser = auxUser;
-            onUserAuthenticated();
         }
+
+        if (g_AuthedUsers.length >= g_MaxSessionUserSlots) {
+            return -1;
+        }
+
+        let registeredUser = findRegisteredUserByName(decodedUser.name);
+
+        if (registeredUser == null) {
+            return -1;
+        }
+
+        if (decodedUser.passHash !== registeredUser.passHash) {
+            return -1;
+        }
+
+        // Pass user authentication via decoded string
+        g_AuthErrorMsg = null;
+        g_AuthedUsers.push(decodedUser);
+
+        if (g_AuthedUsers.length == 1) {
+            onMainUserAuthenticated();
+        }
+
+        return (g_AuthedUsers.length - 1);
     }
 
     function onAuthQrPhotoLoaded(image) {
@@ -210,7 +230,7 @@ $(function () {
                 try {
                     // jsqrcode specific code
                     qrcode.decode();
-                } catch (error) {
+                } catch {
                     console.log("Error: failed to decode uploaded QR authentication photo file.");
                 } finally {
                     // Remove photo Canvas and restore the video QR Canvas for scanning.
@@ -285,7 +305,7 @@ $(function () {
         try {
             // jsqrcode specific code
             qrcode.decode();
-        } catch (error) {
+        } catch {
             window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
         }
 
@@ -377,9 +397,9 @@ $(function () {
 
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
     qrcode.callback = function (result) {
-        if (g_isInDebug) {
-            console.log("Scanned QR code decoded string = " + result.decodedStr);
+        console.log("Scanned QR code decoded string = " + result.decodedStr);
 
+        if (g_isInDebug) {
             var context = $qrCanvas[0].getContext('2d');
             context.arc(result.points[0].x, result.points[0].y, 5, 0, 2 * Math.PI);
             context.fillStyle = "yellow";
@@ -395,11 +415,14 @@ $(function () {
             return;
         }
 
-        authenticateUserFromDecodedString(result.decodedStr);
+        let userSessionSlot = authenticateUserFromDecodedString(result.decodedStr);
 
-        // Send message about that an existing user was detected and validated in this frame via QR.
-        // Pay special attention that data must be wrapped in an array.
-        window.parent.postMessage(JSON.stringify(['qr_user_detected', result]), '*');
+        if (userSessionSlot != -1) {
+            // Send message about that an existing user was detected and validated in this frame via QR.
+            // Pay special attention that data must be wrapped in an array.
+            window.parent.postMessage(JSON.stringify([
+                'qr_user_detected', userSessionSlot, result]), '*');
+        }
     };
 
     // Is DecoderWorker invalid still?
