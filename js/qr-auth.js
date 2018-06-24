@@ -19,6 +19,9 @@ var g_isInDebug = false;
 // Time in ms. after which to stop copying video to canvas
 var g_MsTimeToStopCanvasCopy = 0;
 
+// This is used to filter out already attached cameras if we request further
+let g_AttachedCamsIdString = [];
+
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
         this.name = name;
@@ -126,31 +129,6 @@ $(function () {
         $('#qr-code-gen-html-wrapper').prop('src', 'qr-code-gen.html');
     }
 
-    window.addEventListener('message', function (event) {
-        var dataArray = JSON.parse(event.data);
-        var name = dataArray[0];
-
-        switch (name) {
-            case 'add_session_user_slot': {
-                g_MaxSessionUserSlots++;
-                break;
-            } case 'qr_generation_ready': {
-                // buildEncodedAuth is not serializable, since it's a function. Send the encoded auth already:
-                var qrGenScreenObj = $('#qr-code-gen-html-wrapper')[0].contentWindow;
-
-                // Here, only pass the main User, which should be the first in session users
-                qrGenScreenObj.postMessage(JSON.stringify([
-                    'set_up_qr_generation', g_AuthedUsers[0].name,
-                    g_AuthedUsers[0].buildEncodedAuth()]), '*');
-                break;
-            } case 'qr_steps_completed': {
-                // Forward this event to the parent window from the layer below current iframe
-                window.parent.postMessage(event.data, '*');
-                break;
-            }
-        }
-    }, false);
-
     $('#auth-form').submit(function (event) {
         event.preventDefault(); // Prevent reload page (always)
 
@@ -162,7 +140,6 @@ $(function () {
         }
     });
 
-    var $preview = $('#preview');
     var $qrCanvas = $('#qr-canvas');
     var showLiveCaptureTxt = $('#collapse-capture-btn div').html();
 
@@ -297,19 +274,32 @@ $(function () {
 
     // Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
     function captureToCanvas_ScanQR() {
-        var context = $qrCanvas[0].getContext('2d');
-        var width = $qrCanvas.width();
-        var height = $qrCanvas.height();
-        context.drawImage($preview[0], 0, 0, width, height);
+        let now = Date.now();
 
-        try {
-            // jsqrcode specific code
-            qrcode.decode();
-        } catch {
-            window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
-        }
+        // Filter by previews that have an associated stream (AKA attached cam)
+        // NOTE: We do this because we want to test all cameras, allowing the
+        // user to point at whatever attached camera he wants
+        let $previews = [$('#preview'), $('#preview2')].filter( $preview => {
+            return ($preview[0].src.length > 0 || $preview[0].srcObject);
+        });
 
-        if (g_MsTimeToStopCanvasCopy > Date.now()) {
+        $previews.forEach(function($preview) {
+            let context = $qrCanvas[0].getContext('2d');
+            let width = $qrCanvas.width();
+            let height = $qrCanvas.height();
+            context.drawImage($preview[0], 0, 0, width, height);
+
+            try {
+                // jsqrcode specific code
+                qrcode.decode();
+            } catch {
+                window.parent.postMessage(
+                    JSON.stringify(['qr_user_invalid_or_undetected']), '*'
+                );
+            }
+        });
+
+        if (g_MsTimeToStopCanvasCopy > now) {
             // This should call browser API function if it exists, or setTimeout otherwise (each 16 ms)
             // One advantage of native function is callback is not fired when no animation is rendering in screen.
             // This optimizations happens when being in a different tab, for example.
@@ -321,13 +311,13 @@ $(function () {
         }
     }
 
-    function delayCanvasCopyTimeout() {
+    function delayCanvasCopyTimeout(preview) {
         g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
     }
 
     let cameraInitializationMsTime0;
 
-    $preview[0].ontimeupdate = function() {
+    $('#preview')[0].ontimeupdate = function() {
         console.log("Camera image took " + (Date.now() - cameraInitializationMsTime0)
             + "ms to initialize");
 
@@ -338,12 +328,16 @@ $(function () {
         // From now on, make ontimeupdate callback only delays the timeout.
         // If we don't change it, _requestAnimationFrame causes lag, appearently
         // duplicating its callback on same frames.
-        $preview[0].ontimeupdate = delayCanvasCopyTimeout;
-    }
+        this.ontimeupdate = delayCanvasCopyTimeout;
+    };
+
+    $('#preview2')[0].ontimeupdate = delayCanvasCopyTimeout();
 
     // Fallback function for usage on older getUserMedia APIs
-    function onCameraSuccess(stream) {
+    // Input: $preview - Optional (jQuery) wrapper of Video element to attach stream to
+    function onCameraSuccessEx(stream, $preview = $('#preview')) {
         let settings = stream.getTracks()[0].getSettings();
+        g_AttachedCamsIdString.push(settings.deviceId);
         let captureWidth = settings.width;
         let captureHeight = settings.height;
 
@@ -362,14 +356,14 @@ $(function () {
             settings.aspectRatio, canvasWidth, canvasHeight]), '*');
 
         // Assign the stream to the video. Provide fallback for older APIs.
-        if (typeof($('#preview').prop('srcObject')) === 'object') {
-            $('#preview').prop('srcObject', stream);
+        if (typeof($preview.prop('srcObject')) === 'object') {
+            $preview.prop('srcObject', stream);
         } else {
-            $('#preview').prop('src', URL.createObjectURL(stream));
+            $preview.prop('src', URL.createObjectURL(stream));
         }
 
         cameraInitializationMsTime0 = Date.now();
-        $('#preview')[0].play();
+        $preview[0].play();
     }
 
     // Fallback function for usage on older getUserMedia APIs
@@ -377,23 +371,31 @@ $(function () {
         console.log(error.name + ": " + error.message);
     }
 
-    // Giving preference to newest API.
-    // Correct prefix needs to be used to prevent context error (tested).
-    let prefix = navigator.mediaDevices || navigator;
+    // Wrapped getUserMedia.
+    // Input: cameraIdString - Optional device id to request a specific camera
+    function wrappedGUM(cameraIdString, $preview) {
+        // Giving preference to newest API.
+        // Correct prefix needs to be used to prevent context error (tested).
+        let prefix = navigator.mediaDevices || navigator;
 
-    // NOTE: It'd be a syntax error making a new variable out of a property.
-    // Simply re-assign the existing property to the compatible API:
-    prefix.getUserMedia = prefix.getUserMedia || prefix.mozGetUserMedia
-        || prefix.webkitGetUserMedia || prefix.msGetUserMedia;
+        // NOTE: It'd be a syntax error making a new variable out of a property.
+        // Simply re-assign the existing property to the compatible API:
+        prefix.getUserMedia = prefix.getUserMedia || prefix.mozGetUserMedia
+            || prefix.webkitGetUserMedia || prefix.msGetUserMedia;
 
-    // Init video, in the hope that a natural camera resolution will be used
-    let retVal = prefix.getUserMedia({ video: true, audio: false },
-        onCameraSuccess, onCameraError);
+        // Init video, in the hope that a natural camera resolution will be used
+        let retVal = prefix.getUserMedia({
+            video: { deviceId: cameraIdString }, audio: false
+        }, stream => onCameraSuccessEx(stream, $preview), onCameraError);
 
-    if (typeof(retVal) == 'object') {
-        // Assumme returned value is a Promise from the newest getUserMedia API
-        retVal.then(onCameraSuccess).catch(onCameraError);
+        if (typeof(retVal) === 'object') {
+            // Assumme returned value is a Promise from the newest getUserMedia API
+            retVal.then(stream => onCameraSuccessEx(stream, $preview))
+            .catch(onCameraError);
+        }
     }
+
+    wrappedGUM();
 
     // jsqrcode specific code - result of the scanning of the embedded QR canvas
     qrcode.callback = function (result) {
@@ -448,4 +450,51 @@ $(function () {
             JOB.Init(decoderWorker, "thirdparty/JOB/exif.js");
         });
     }
+
+    //////////////////////////////////////////////////////////////////////
+    ////////////               Iframe fallbacks               ////////////
+    //////////////////////////////////////////////////////////////////////
+
+    window.addEventListener('message', function (event) {
+        var dataArray = JSON.parse(event.data);
+        var name = dataArray[0];
+
+        switch (name) {
+            case 'add_session_user_slot': {
+                g_MaxSessionUserSlots++;
+
+                if (navigator.mediaDevices.enumerateDevices == null) {
+                    break;
+                }
+
+                navigator.mediaDevices.enumerateDevices()
+                .then(function(devices) {
+                    // NOTE: Processing a MediaDeviceInfo object
+                    let secondaryCamera = devices.find(device => {
+                        return (device.kind === 'videoinput'
+                        && g_AttachedCamsIdString.indexOf(device.deviceId) == -1);
+                    });
+
+                    if (secondaryCamera != null) {
+                        wrappedGUM(secondaryCamera.deviceId, $('#preview2'));
+                    }
+                });
+
+                break;
+            } case 'qr_generation_ready': {
+                // buildEncodedAuth is not serializable, since it's a function. Send the encoded auth already:
+                var qrGenScreenObj = $('#qr-code-gen-html-wrapper')[0].contentWindow;
+
+                // Here, only pass the main User, which should be the first in session users
+                qrGenScreenObj.postMessage(JSON.stringify([
+                    'set_up_qr_generation', g_AuthedUsers[0].name,
+                    g_AuthedUsers[0].buildEncodedAuth()]), '*');
+                break;
+            } case 'qr_steps_completed': {
+                // Forward this event to the parent window from the layer below current iframe
+                window.parent.postMessage(event.data, '*');
+                break;
+            }
+        }
+    }, false);
 })

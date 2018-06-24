@@ -11,7 +11,7 @@ img {
     display: none;
 }
 
-#preview {
+#preview, #preview2 {
     /* Never set hidden as div parameter, or capture breaks */
     visibility: hidden;
 
