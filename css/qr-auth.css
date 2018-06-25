@@ -11,11 +11,9 @@ img {
     display: none;
 }
 
-#preview, #preview2 {
-    /* Never set hidden as div parameter, or capture breaks */
-    visibility: hidden;
-
+#camera1_video, #camera2_video {
     position: absolute;
+    display: none;
 }
 
 /* Toggleable WebCam feedback to display in bottom right page corner */
@@ -26,9 +24,14 @@ img {
     z-index: 1050; /* Minimum level to allow interacting when Boostrap modal is open */
 }
 
+#mini_camera_preview {
+    display: none;
+    width: 200px; /* To preserve window space. Height will be dynamically set later. */
+}
+
 #qr-canvas {
     display: none;
-    width: 200px; /* Use a reasonable small width to preserve window space. Height will be dynamically set later. */
+    position: absolute;
 }
 
 #qr-code-gen-html-wrapper {

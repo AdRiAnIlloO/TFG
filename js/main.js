@@ -8,8 +8,13 @@ const Y_DIM = 1;
 // The Pong jQuery object, we load it only once the QR layer is completed by the user.
 var g_PongObj = null;
 
-var g_QrCaptureDims = Array(2);
-var g_QrCaptureAspectRatio = null;
+function QrCaptureBoundsInfo(aspectRatio, width, height) {
+    this.aspectRatio = aspectRatio;
+    this.dimensions = [width, height];
+}
+
+// Used to broadcast bounds info of the Videos with QR detection
+let g_QrCapturesBoundsInfo = [];
 
 var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los archivos de tu ordenador. "
     + "¡No hay problema! Hemos habilitado unos mecanismos alternativos para que puedas utilizar la Web correctamente.";
@@ -18,8 +23,10 @@ var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los ar
 var g_qrImgUrl = null;
 
 $(function () {
-    function onQRUserDetected(event, userSessionSlot, result) {
+    function onQRUserDetected(event, videoIndex, userSessionSlot, result) {
         if (g_PongObj != null) {
+            let info = g_QrCapturesBoundsInfo[videoIndex];
+
             let bottomLeftPoint = result.points[0],
                 topLeftPoint = result.points[1],
                 topRightPoint = result.points[2];
@@ -29,16 +36,15 @@ $(function () {
             let isInMirrorMode = false;
 
             if (!isInMirrorMode) {
-                bottomLeftPoint.x = g_QrCaptureDims[X_DIM] - bottomLeftPoint.x;
-                topLeftPoint.x = g_QrCaptureDims[X_DIM] - topLeftPoint.x;
-                topRightPoint.x = g_QrCaptureDims[X_DIM] - topRightPoint.x;
+                bottomLeftPoint.x = info.dimensions[X_DIM] - bottomLeftPoint.x;
+                topLeftPoint.x = info.dimensions[X_DIM] - topLeftPoint.x;
+                topRightPoint.x = info.dimensions[X_DIM] - topRightPoint.x;
             }
 
             // Send event to Pong with the data it needs for transformations
             var encodedArray = JSON.stringify(['transform_player_block_from_qr',
-                userSessionSlot, isInMirrorMode, g_qrImgUrl, g_QrCaptureAspectRatio,
-                g_QrCaptureDims, bottomLeftPoint, topLeftPoint,
-                topRightPoint]);
+                userSessionSlot, isInMirrorMode, g_qrImgUrl, info.aspectRatio,
+                info.dimensions, bottomLeftPoint, topLeftPoint, topRightPoint]);
             g_PongObj.postMessage(encodedArray, '*');
         }
     }
@@ -65,9 +71,8 @@ $(function () {
     }
 
     function handleQRVideoDimensions(aspectRatio, width, height) {
-        g_QrCaptureAspectRatio = aspectRatio;
-        g_QrCaptureDims[X_DIM] = width;
-        g_QrCaptureDims[Y_DIM] = height;
+        let info = new QrCaptureBoundsInfo(aspectRatio, width, height);
+        g_QrCapturesBoundsInfo.push(info);
     }
 
     if (window.location.href.indexOf('file:///') == 0) {
@@ -100,7 +105,9 @@ $(function () {
                 g_PongObj = $('#pong-game-html-wrapper')[0].contentWindow;
 
                 // Set Pong execution mode without self camera tracking (it will be done by this layer)
-                g_PongObj.postMessage(JSON.stringify(['set_external_camera_tracking']), '*');
+                g_PongObj.postMessage(
+                    JSON.stringify(['set_external_camera_tracking']), '*'
+                );
 
                 break;
             } case 'qr_auth_video_dimensions': {
@@ -111,7 +118,8 @@ $(function () {
                 onQRStepsCompleted(event, dataArray[1]);
                 break;
             } case 'qr_user_detected': {
-                onQRUserDetected(event, dataArray[1], dataArray[2]);
+                onQRUserDetected(event, dataArray[1], dataArray[2],
+                    dataArray[3]);
                 break;
             } case 'qr_user_invalid_or_undetected': {
                 onInvalidQRUserCurFrame(event);

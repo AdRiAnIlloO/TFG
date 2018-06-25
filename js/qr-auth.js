@@ -5,6 +5,9 @@
 // In normal conditions, 'ontimeupdate' is fired around each 250 ms as much
 const CANVAS_COPY_TIMEOUT_MS = 1000; // 1 second
 
+const X_DIM = 0;
+const Y_DIM = 1;
+
 let g_MaxSessionUserSlots = 1;
 
 // Global registered and in-session users
@@ -14,7 +17,7 @@ let g_AuthedUsers = [];
 var g_AuthErrorMsg = null;
 
 // Console logging?
-var g_isInDebug = false;
+var g_IsInDebug = false;
 
 // Time in ms. after which to stop copying video to canvas
 var g_MsTimeToStopCanvasCopy = 0;
@@ -187,12 +190,12 @@ $(function () {
     }
 
     function onAuthQrPhotoLoaded(image) {
-        // Set up a new temporary Canvas for scanning
-        let $photoCanvas = $('<canvas id="qr-canvas">');
-        $photoCanvas.prop('width', image.width);
-        $photoCanvas.prop('height', image.height);
-        $('body').append($photoCanvas);
-        let context = $photoCanvas[0].getContext('2d');
+        // Because JOB is asynchronous, block decoding from the camera stream
+        $qrCanvas[0].isDecodingLocked = true;
+
+        $qrCanvas.prop('width', image.width);
+        $qrCanvas.prop('height', image.height);
+        let context = $qrCanvas[0].getContext('2d');
         context.drawImage(image, 0, 0);
 
         JOB.SetImageCallback(function(result) {
@@ -200,21 +203,17 @@ $(function () {
                 console.log("Scanned 1D barcode type = " + result[0].Format
                     + ". Decoded string = " + result[0].Value + ".");
                 authenticateUserFromDecodedString(result[0].Value);
-            } else { // Fallback to jsqrcode library
-                // Temporary disable the video QR Canvas for scanning
-                $qrCanvas.prop('id', null); // NOTE: 'undefined' causes no change
-
+            } else {
+                 // Fallback to jsqrcode library
                 try {
-                    // jsqrcode specific code
                     qrcode.decode();
                 } catch {
                     console.log("Error: failed to decode uploaded QR authentication photo file.");
-                } finally {
-                    // Remove photo Canvas and restore the video QR Canvas for scanning.
-                    $photoCanvas.remove();
-                    $qrCanvas.prop('id', 'qr-canvas');
                 }
             }
+
+            // Release lock to re-allow decoding from the camera stream
+            $qrCanvas[0].isDecodingLocked = false;
         });
 
         JOB.DecodeImage(image);
@@ -224,9 +223,7 @@ $(function () {
         let image = new Image();
         image.src = dataUrl;
 
-        image.onload = function() {
-            onAuthQrPhotoLoaded(image);
-        };
+        image.onload = (() => onAuthQrPhotoLoaded(image));
     }
 
     function readAuthQrPhotoFile(file) {
@@ -244,12 +241,12 @@ $(function () {
         reader.readAsDataURL(file);
     }
 
-    $('#image-upload-input').click(function() {
+    $('#image_upload_input').click(function() {
          // Allow to detect consecutive re-uploaded files with same name
         $(this).val("");
     });
 
-    $('#image-upload-input').change(function(event) {
+    $('#image_upload_input').change(function(event) {
         let file = event.target.files[0];
 
         if (file != null) {
@@ -257,11 +254,13 @@ $(function () {
         }
     });
 
+    let $miniCamPreview = $('#mini_camera_preview');
+
     // Modify the live capture user-interactable section
     $('#collapse-capture-btn').click(function () {
-        $qrCanvas.toggle();
+        $miniCamPreview.toggle();
 
-        if ($qrCanvas.is(':hidden')) {
+        if ($miniCamPreview.is(':hidden')) {
             $(this).children('div').html(showLiveCaptureTxt);
         } else {
             $(this).children('div').html('Ocultar captura en vivo');
@@ -274,22 +273,38 @@ $(function () {
 
     // Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
     function captureToCanvas_ScanQR() {
+        if ($qrCanvas[0].isDecodingLocked) {
+            // There is an ongoing asynchronous operation for decoding a QR code
+            // from an uploaded photo (handled by JOB). Wait for it to complete.
+            return;
+        }
+
         let now = Date.now();
 
         // Filter by previews that have an associated stream (AKA attached cam)
         // NOTE: We do this because we want to test all cameras, allowing the
         // user to point at whatever attached camera he wants
-        let $previews = [$('#preview'), $('#preview2')].filter( $preview => {
-            return ($preview[0].src.length > 0 || $preview[0].srcObject);
-        });
+        let $videos = [$('#camera1_video'), $('#camera2_video')].filter(
+            $video => ($video[0].src.length > 0 || $video[0].srcObject)
+        );
 
-        $previews.forEach(function($preview) {
+        // Is it suitable to copy the main capture to the mini preview Canvas?
+        if ($miniCamPreview.is(':visible')) {
+            let context = $miniCamPreview[0].getContext('2d');
+            context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
+                $miniCamPreview.height());
+        }
+
+        $videos.forEach(function($video, index) {
+            // Adequate the scanned Canvas to current Video and copy the image
+            $qrCanvas.prop('width', $video.width());
+            $qrCanvas.prop('height', $video.height());
             let context = $qrCanvas[0].getContext('2d');
-            let width = $qrCanvas.width();
-            let height = $qrCanvas.height();
-            context.drawImage($preview[0], 0, 0, width, height);
+            context.drawImage($video[0], 0, 0);
 
             try {
+                $qrCanvas[0].videoIndex = index;
+
                 // jsqrcode specific code
                 qrcode.decode();
             } catch {
@@ -317,7 +332,7 @@ $(function () {
 
     let cameraInitializationMsTime0;
 
-    $('#preview')[0].ontimeupdate = function() {
+    $('#camera1_video')[0].ontimeupdate = function() {
         console.log("Camera image took " + (Date.now() - cameraInitializationMsTime0)
             + "ms to initialize");
 
@@ -331,39 +346,37 @@ $(function () {
         this.ontimeupdate = delayCanvasCopyTimeout;
     };
 
-    $('#preview2')[0].ontimeupdate = delayCanvasCopyTimeout();
+    $('#camera2_video')[0].ontimeupdate = delayCanvasCopyTimeout();
 
     // Fallback function for usage on older getUserMedia APIs
-    // Input: $preview - Optional (jQuery) wrapper of Video element to attach stream to
-    function onCameraSuccessEx(stream, $preview = $('#preview')) {
+    // Input: $video - Optional (jQuery) wrapper of Video element to attach stream to
+    function onCameraSuccessEx(stream, $video = $('#camera1_video')) {
         let settings = stream.getTracks()[0].getSettings();
+        let cameraSlot = g_AttachedCamsIdString.length;
         g_AttachedCamsIdString.push(settings.deviceId);
         let captureWidth = settings.width;
         let captureHeight = settings.height;
 
-        // We copy the resulting capture height to the canvas height.
-        // Using dimensions to natural resolution makes QR detection faster.
-        let canvasWidth = $qrCanvas.width();
-        let canvasHeight = canvasWidth / settings.aspectRatio;
-        $qrCanvas.prop('height', canvasHeight);
-
-        // Copy it to the CSS too, it's necessary to keep canvas working when
-        // this view (QR authentication) is placed behind other view via z-index
-        $qrCanvas.height(canvasHeight);
+        if ($video === $('camera1_video')) {
+            // Calculate the height of the mini preview from retrieved height
+            let canvasWidth = $miniCamPreview.width();
+            let canvasHeight = canvasWidth / settings.aspectRatio;
+            $miniCamPreview.prop('height', canvasHeight);
+        }
 
         // Inform the main layer of the QR video dimensions
         window.parent.postMessage(JSON.stringify(['qr_auth_video_dimensions',
-            settings.aspectRatio, canvasWidth, canvasHeight]), '*');
+            settings.aspectRatio, captureWidth, captureHeight]), '*');
 
         // Assign the stream to the video. Provide fallback for older APIs.
-        if (typeof($preview.prop('srcObject')) === 'object') {
-            $preview.prop('srcObject', stream);
+        if (typeof($video.prop('srcObject')) === 'object') {
+            $video.prop('srcObject', stream);
         } else {
-            $preview.prop('src', URL.createObjectURL(stream));
+            $video.prop('src', URL.createObjectURL(stream));
         }
 
         cameraInitializationMsTime0 = Date.now();
-        $preview[0].play();
+        $video[0].play();
     }
 
     // Fallback function for usage on older getUserMedia APIs
@@ -371,9 +384,10 @@ $(function () {
         console.log(error.name + ": " + error.message);
     }
 
-    // Wrapped getUserMedia.
+    // Wrapped getUserMedia
     // Input: cameraIdString - Optional device id to request a specific camera
-    function wrappedGUM(cameraIdString, $preview) {
+    // $video - Optional (jQuery) wrapper of Video element to attach stream to
+    function wrappedGUM(cameraIdString, $video) {
         // Giving preference to newest API.
         // Correct prefix needs to be used to prevent context error (tested).
         let prefix = navigator.mediaDevices || navigator;
@@ -386,11 +400,11 @@ $(function () {
         // Init video, in the hope that a natural camera resolution will be used
         let retVal = prefix.getUserMedia({
             video: { deviceId: cameraIdString }, audio: false
-        }, stream => onCameraSuccessEx(stream, $preview), onCameraError);
+        }, stream => onCameraSuccessEx(stream, $video), onCameraError);
 
         if (typeof(retVal) === 'object') {
             // Assumme returned value is a Promise from the newest getUserMedia API
-            retVal.then(stream => onCameraSuccessEx(stream, $preview))
+            retVal.then(stream => onCameraSuccessEx(stream, $video))
             .catch(onCameraError);
         }
     }
@@ -401,19 +415,28 @@ $(function () {
     qrcode.callback = function (result) {
         console.log("Scanned QR code decoded string = " + result.decodedStr);
 
-        if (g_isInDebug) {
-            var context = $qrCanvas[0].getContext('2d');
-            context.arc(result.points[0].x, result.points[0].y, 5, 0, 2 * Math.PI);
-            context.fillStyle = "yellow";
-            context.fill();
-            context.beginPath();
-            context.arc(result.points[1].x, result.points[1].y, 5, 0, 2 * Math.PI);
-            context.fillStyle = "orange";
-            context.fill();
-            context.beginPath();
-            context.arc(result.points[2].x, result.points[2].y, 5, 0, 2 * Math.PI);
-            context.fillStyle = "red";
-            context.fill();
+        // Is it suitable to do debug drawings on the mini preview Canvas?
+        if (
+            $qrCanvas[0].videoIndex === 0 && $miniCamPreview.is(':visible')
+            && g_IsInDebug
+        ) {
+            // Begin: Display points on the QR's finder points and exit
+            let ratios = [
+                $miniCamPreview.prop('width') / $qrCanvas.prop('width'),
+                $miniCamPreview.prop('height') / $qrCanvas.prop('height')
+            ];
+            let context = $miniCamPreview[0].getContext('2d');
+            let fillStyles = ['yellow', 'orange', 'red', 'magenta'];
+
+            result.points.forEach((point, index) => {
+                context.beginPath();
+                context.arc(point.x * ratios[X_DIM],
+                    point.y * ratios[Y_DIM], 5, 0, 2 * Math.PI);
+                context.fillStyle = fillStyles[index];
+                context.fill();
+                context.closePath();
+            });
+
             return;
         }
 
@@ -422,8 +445,8 @@ $(function () {
         if (userSessionSlot != -1) {
             // Send message about that an existing user was detected and validated in this frame via QR.
             // Pay special attention that data must be wrapped in an array.
-            window.parent.postMessage(JSON.stringify([
-                'qr_user_detected', userSessionSlot, result]), '*');
+            window.parent.postMessage(JSON.stringify(['qr_user_detected',
+                $qrCanvas[0].videoIndex, userSessionSlot, result]), '*');
         }
     };
 
@@ -476,7 +499,7 @@ $(function () {
                     });
 
                     if (secondaryCamera != null) {
-                        wrappedGUM(secondaryCamera.deviceId, $('#preview2'));
+                        wrappedGUM(secondaryCamera.deviceId, $('#camera2_video'));
                     }
                 });
 
