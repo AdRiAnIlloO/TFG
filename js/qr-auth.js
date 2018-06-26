@@ -296,7 +296,12 @@ $(function () {
                 return false;
             }
 
-            if ($video[0].captureStream && !$video[0].captureStream().active) {
+            // The call to captureStream() bugs fatally all captures on Chrome
+            if (
+                $video[0].captureStream
+                && navigator.userAgent.indexOf("Chrome") == -1
+                && !$video[0].captureStream().active
+            ) {
                 // Stream disconnected. Log error, filter out Video and mark to stop rAF.
                 logStreamStopError($video);
                 shouldRAF = false;
@@ -309,13 +314,15 @@ $(function () {
             }
 
             if (!$video[0].isCaptureInitializationHandled) {
-                // Initialize the disconnect heuristical timeout
+                // Initialize an heuristical timeout to catch camera disconnects
                 delayCanvasCopyTimeout($video[0]);
 
                 $video[0].isCaptureInitializationHandled = true;
                 console.log("Camera image on video element with id: '" + $video.prop('id')
                     + "' took " + (now - $video[0].streamInitMsTime) + "ms to initialize");
             } else if (now >= $video[0].nextCheckMsTime) {
+                // Video stopped responding for enough time (camera may disconnected).
+                // Log error, filter out Video and mark to stop rAF.
                 logStreamStopError($video);
                 shouldRAF = false;
                 return false;
