@@ -19,9 +19,6 @@ var g_AuthErrorMsg = null;
 // Console logging?
 var g_IsInDebug = false;
 
-// Time in ms. after which to stop copying video to canvas
-var g_MsTimeToStopCanvasCopy = 0;
-
 // This is used to filter out already attached cameras if we request further
 let g_AttachedCamsIdString = [];
 
@@ -271,82 +268,105 @@ $(function () {
         $(this).children('i').first().toggleClass('fa-compress');
     });
 
+    function delayCanvasCopyTimeout(video) {
+        video.nextCheckMsTime = Date.now() + CANVAS_COPY_TIMEOUT_MS;
+    }
+
+    function logStreamStopError($video) {
+        if (!$video[0].isStreamStopLogged) {
+            console.log("Error: video element with id: '" + $video.prop('id')
+                + "' recently stopped receiving camera data");
+            $video[0].isStreamStopLogged = true;
+        }
+    }
+
     // Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
     function captureToCanvas_ScanQR() {
-        if ($qrCanvas[0].isDecodingLocked) {
-            // There is an ongoing asynchronous operation for decoding a QR code
-            // from an uploaded photo (handled by JOB). Wait for it to complete.
-            return;
-        }
-
+        // It is convenient to place this at the start, since this function time
+        // advances even when doing the blocking operations below; avoid trouble
         let now = Date.now();
 
-        // Filter by previews that have an associated stream (AKA attached cam)
-        // NOTE: We do this because we want to test all cameras, allowing the
-        // user to point at whatever attached camera he wants
-        let $videos = [$('#camera1_video'), $('#camera2_video')].filter(
-            $video => ($video[0].src.length > 0 || $video[0].srcObject)
-        );
+        let shouldRAF = true;
+        let $videos = [$('#camera1_video'), $('#camera2_video')];
 
-        // Is it suitable to copy the main capture to the mini preview Canvas?
-        if ($miniCamPreview.is(':visible')) {
-            let context = $miniCamPreview[0].getContext('2d');
-            context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
-                $miniCamPreview.height());
-        }
+        // Reduce Video array to the Videos that should be processed
+        $videos = $videos.filter(($video, index) => {
+            if ($video[0].src == "" && $video[0].srcObject == null) {
+                // Camera was never attached. Filter out Video.
+                return false;
+            }
 
-        $videos.forEach(function($video, index) {
+            if ($video[0].captureStream && !$video[0].captureStream().active) {
+                // Stream disconnected. Log error, filter out Video and mark to stop rAF.
+                logStreamStopError($video);
+                shouldRAF = false;
+                return false;
+            }
+
+            if ($video[0].readyState !== $video[0].HAVE_ENOUGH_DATA) {
+                // Image is not ready yet. Filter out Video.
+                return false;
+            }
+
+            if (!$video[0].isCaptureInitializationHandled) {
+                // Initialize the disconnect heuristical timeout
+                delayCanvasCopyTimeout($video[0]);
+
+                $video[0].isCaptureInitializationHandled = true;
+                console.log("Camera image on video element with id: '" + $video.prop('id')
+                    + "' took " + (now - $video[0].streamInitMsTime) + "ms to initialize");
+            } else if (now >= $video[0].nextCheckMsTime) {
+                logStreamStopError($video);
+                shouldRAF = false;
+                return false;
+            }
+
             // Adequate the scanned Canvas to current Video and copy the image
             $qrCanvas.prop('width', $video.width());
             $qrCanvas.prop('height', $video.height());
             let context = $qrCanvas[0].getContext('2d');
             context.drawImage($video[0], 0, 0);
 
-            try {
-                $qrCanvas[0].videoIndex = index;
+            // If there is an ongoing asynchronous operation for decoding a QR code
+            // from an uploaded photo (handled by JOB), wait for it to complete
+            if (!$qrCanvas[0].isDecodingLocked) {
+                try {
+                    $qrCanvas[0].videoIndex = index;
 
-                // jsqrcode specific code
-                qrcode.decode();
-            } catch {
-                window.parent.postMessage(
-                    JSON.stringify(['qr_user_invalid_or_undetected']), '*'
-                );
+                    // jsqrcode specific code
+                    qrcode.decode();
+                } catch {
+                    window.parent.postMessage(
+                        JSON.stringify(['qr_user_invalid_or_undetected']), '*'
+                    );
+                }
             }
+
+            return true;
         });
 
-        if (g_MsTimeToStopCanvasCopy > now) {
+        if (shouldRAF) {
+            // Is it suitable to copy the nearest valid capture to the mini preview Canvas?
+            if ($videos.length > 0 && $miniCamPreview.is(':visible')) {
+                let context = $miniCamPreview[0].getContext('2d');
+                context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
+                    $miniCamPreview.height());
+            }
+
             // This should call browser API function if it exists, or setTimeout otherwise (each 16 ms)
-            // One advantage of native function is callback is not fired when no animation is rendering in screen.
-            // This optimizations happens when being in a different tab, for example.
-            // This needs to be requested on each frame (ONCE) for the next one
             _requestAnimationFrame(captureToCanvas_ScanQR);
-        } else {
-            console.log("Error: video element recently stopped receiving camera data");
-            window.parent.postMessage(JSON.stringify(['qr_user_invalid_or_undetected']), '*');
         }
     }
 
-    function delayCanvasCopyTimeout(preview) {
-        g_MsTimeToStopCanvasCopy = Date.now() + CANVAS_COPY_TIMEOUT_MS;
-    }
-
-    let cameraInitializationMsTime0;
+    $('#camera1_video')[0].onplay = captureToCanvas_ScanQR;
 
     $('#camera1_video')[0].ontimeupdate = function() {
-        console.log("Camera image took " + (Date.now() - cameraInitializationMsTime0)
-            + "ms to initialize");
-
-        // Start Canvas QR process
-        delayCanvasCopyTimeout();
-        captureToCanvas_ScanQR();
-
-        // From now on, make ontimeupdate callback only delays the timeout.
-        // If we don't change it, _requestAnimationFrame causes lag, appearently
-        // duplicating its callback on same frames.
-        this.ontimeupdate = delayCanvasCopyTimeout;
+        delayCanvasCopyTimeout(this); // NOTE: this would be undefined in lambda
     };
 
-    $('#camera2_video')[0].ontimeupdate = delayCanvasCopyTimeout();
+    $('#camera2_video')[0].ontimeupdate = function() {
+        delayCanvasCopyTimeout(this); // NOTE: this would be undefined in lambda
+    };
 
     // Fallback function for usage on older getUserMedia APIs
     // Input: $video - Optional (jQuery) wrapper of Video element to attach stream to
@@ -375,7 +395,7 @@ $(function () {
             $video.prop('src', URL.createObjectURL(stream));
         }
 
-        cameraInitializationMsTime0 = Date.now();
+        $video[0].streamInitMsTime = Date.now();
         $video[0].play();
     }
 
