@@ -186,6 +186,58 @@ $(function () {
         return (g_AuthedUsers.length - 1);
     }
 
+    // Result of the scanning of the embedded QR canvas
+    // (jsqrcode callback expanded to accept initial time before decoding)
+    function onQrCodeDecoded(result, decodingMsTime0) {
+        console.log("Scanned QR code decoded string = '" + result.decodedStr
+            + "'. Decoding took " + (Date.now() - decodingMsTime0)
+            + " ms to complete.");
+
+        // Is it suitable to do debug drawings on the mini preview Canvas?
+        if (
+            $qrCanvas[0].videoIndex === 0 && $miniCamPreview.is(':visible')
+            && g_IsInDebug
+        ) {
+            // Begin: Display points on the QR's finder points and exit
+            let ratios = [
+                $miniCamPreview.prop('width') / $qrCanvas.prop('width'),
+                $miniCamPreview.prop('height') / $qrCanvas.prop('height')
+            ];
+            let context = $miniCamPreview[0].getContext('2d');
+            let fillStyles = ['yellow', 'orange', 'red', 'magenta'];
+
+            result.points.forEach((point, index) => {
+                context.beginPath();
+                context.arc(point.x * ratios[X_DIM],
+                    point.y * ratios[Y_DIM], 5, 0, 2 * Math.PI);
+                context.fillStyle = fillStyles[index];
+                context.fill();
+                context.closePath();
+            });
+
+            return;
+        }
+
+        let userSessionSlot = authenticateUserFromDecodedString(result.decodedStr);
+
+        if (userSessionSlot != -1) {
+            // Send message about that an existing user was detected and validated in this frame via QR.
+            // Pay special attention that data must be wrapped in an array.
+            window.parent.postMessage(JSON.stringify(['qr_user_detected',
+                $qrCanvas[0].videoIndex, userSessionSlot, result]), '*');
+        }
+    };
+
+    function wrappedDecodeQrCode() {
+        let decodingMsTime0 = Date.now();
+        qrcode.callback = ((result) => {
+            onQrCodeDecoded(result, decodingMsTime0);
+        });
+
+        // jsqrcode specific code
+        qrcode.decode();
+    }
+
     function onAuthQrPhotoLoaded(image) {
         // Because JOB is asynchronous, block decoding from the camera stream
         $qrCanvas[0].isDecodingLocked = true;
@@ -194,16 +246,19 @@ $(function () {
         $qrCanvas.prop('height', image.height);
         let context = $qrCanvas[0].getContext('2d');
         context.drawImage(image, 0, 0);
+        let decodingMsTime0 = Date.now();
 
         JOB.SetImageCallback(function(result) {
             if (result.length > 0) {
                 console.log("Scanned 1D barcode type = " + result[0].Format
-                    + ". Decoded string = " + result[0].Value + ".");
+                    + ". Decoded string = " + result[0].Value
+                    + ". Decoding took " + (Date.now() - decodingMsTime0)
+                    + " ms to complete.");
                 authenticateUserFromDecodedString(result[0].Value);
             } else {
                  // Fallback to jsqrcode library
                 try {
-                    qrcode.decode();
+                    wrappedDecodeQrCode();
                 } catch {
                     console.log("Error: failed to decode uploaded QR authentication photo file.");
                 }
@@ -339,9 +394,7 @@ $(function () {
             if (!$qrCanvas[0].isDecodingLocked) {
                 try {
                     $qrCanvas[0].videoIndex = index;
-
-                    // jsqrcode specific code
-                    qrcode.decode();
+                    wrappedDecodeQrCode();
                 } catch {
                     window.parent.postMessage(
                         JSON.stringify(['qr_user_invalid_or_undetected']), '*'
@@ -437,45 +490,6 @@ $(function () {
     }
 
     wrappedGUM();
-
-    // jsqrcode specific code - result of the scanning of the embedded QR canvas
-    qrcode.callback = function (result) {
-        console.log("Scanned QR code decoded string = " + result.decodedStr);
-
-        // Is it suitable to do debug drawings on the mini preview Canvas?
-        if (
-            $qrCanvas[0].videoIndex === 0 && $miniCamPreview.is(':visible')
-            && g_IsInDebug
-        ) {
-            // Begin: Display points on the QR's finder points and exit
-            let ratios = [
-                $miniCamPreview.prop('width') / $qrCanvas.prop('width'),
-                $miniCamPreview.prop('height') / $qrCanvas.prop('height')
-            ];
-            let context = $miniCamPreview[0].getContext('2d');
-            let fillStyles = ['yellow', 'orange', 'red', 'magenta'];
-
-            result.points.forEach((point, index) => {
-                context.beginPath();
-                context.arc(point.x * ratios[X_DIM],
-                    point.y * ratios[Y_DIM], 5, 0, 2 * Math.PI);
-                context.fillStyle = fillStyles[index];
-                context.fill();
-                context.closePath();
-            });
-
-            return;
-        }
-
-        let userSessionSlot = authenticateUserFromDecodedString(result.decodedStr);
-
-        if (userSessionSlot != -1) {
-            // Send message about that an existing user was detected and validated in this frame via QR.
-            // Pay special attention that data must be wrapped in an array.
-            window.parent.postMessage(JSON.stringify(['qr_user_detected',
-                $qrCanvas[0].videoIndex, userSessionSlot, result]), '*');
-        }
-    };
 
     // Is DecoderWorker invalid still?
     let decoderWorker = null;
