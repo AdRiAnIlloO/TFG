@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <title>Mini-juego QR - QR generado</title>
     <link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/qr-code-gen.css" />
 
     <!-- Include scripts in correct dependency order, to guarantee safety -->
     <script type="text/javascript" src="thirdparty/jquery.min.js"></script>
@@ -18,10 +19,21 @@
                     <h5 class="modal-title"></h5>
                 </div>
                 <div class="modal-body">
-                    <img id="qr-gen-auth-code" alt="Imagen del código QR generado para autenticarse" />
+                    <!-- HTML5 standard requires this crossorigin value to allow
+                    downloading external image that's copied to Canvas later -->
+                    <img id="qr_gen_auth_code" crossorigin="anonymous"
+                    alt="Imagen del código QR generado para autenticarse" />
                 </div>
                 <div class="modal-footer">
-                    <button id="qr-gen-modal-close-btn" class="btn btn-primary">Entendido. Ir a la Web.</button>
+                    <div class="container d-sm-flex justify-content-between">
+                        <a id="save_qr_image_btn" class="btn btn-warning"
+                        download="Mi código QR">
+                        Guardar c&oacute;digo
+                        </a>
+                        <button id="qr_gen_modal_close_btn" class="btn btn-primary">
+                            Entendido. Ir a la Web.
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

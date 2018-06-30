@@ -1,0 +1,8 @@
+.modal-body {
+    text-align: center;
+}
+
+#save_qr_image_btn {
+    /* To display later if QR image download capacity succeeds on current env */
+    display: none;
+}

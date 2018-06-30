@@ -2,11 +2,6 @@
     background-color: lightblue;
 }
 
-img {
-    height: 100%;
-    width: 100%;
-}
-
 #auth-errors {
     display: none;
 }
