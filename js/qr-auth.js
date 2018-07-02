@@ -338,38 +338,45 @@ $(function () {
     // Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
     function captureToCanvas_ScanQR() {
         // It is convenient to place this at the start, since this function time
-        // advances even when doing the blocking operations below; avoid trouble
+        // advances even when doing the blocking operations below (heuristic timeout)
         let now = Date.now();
 
-        let shouldRAF = true;
+        // Marks if rAF should be called at the end of frame, and that is when
+        // there is at least a Valid Video, determined within filter loop
+        let shouldRAF = false;
+
         let $videos = [$('#camera1_video'), $('#camera2_video')];
+        $miniCamPreview[0].isCopyHandledCurFrame = false;
 
         // Reduce Video array to the Videos that should be processed
         $videos = $videos.filter(($video, index) => {
             if ($video[0].src == "" && $video[0].srcObject == null) {
-                // Camera was never attached. Filter out Video.
+                // Camera was never attached. Allow rAF, but filter out Video.
+                shouldRAF = true;
                 return false;
             }
 
-            // The call to captureStream() bugs fatally all captures on Chrome
-            if (
-                $video[0].captureStream
-                && navigator.userAgent.indexOf("Chrome") == -1
-                && !$video[0].captureStream().active
-            ) {
+            $video[0].captureStream = $video[0].captureStream
+                || $video[0].mozCaptureStream;
+
+            // Is currently allocated stream 'broken'? We must check it earlier to catch
+            // disconnections when next precondition of readyState would be true
+            // BUG:'active' attribute randomly sets to false on some frames on
+            // 2nd Video, what to do? Still, it's fine as long as first Video is
+            if ($video[0].captureStream && !$video[0].captureStream().active) {
                 // Stream disconnected. Log error, filter out Video and mark to stop rAF.
                 logStreamStopError($video);
-                shouldRAF = false;
                 return false;
             }
 
             if ($video[0].readyState !== $video[0].HAVE_ENOUGH_DATA) {
-                // Image is not ready yet. Filter out Video.
+                // Image is not ready yet. Allow rAF, but filter out Video.
+                shouldRAF = true;
                 return false;
             }
 
             if (!$video[0].isCaptureInitializationHandled) {
-                // Initialize an heuristical timeout to catch camera disconnects
+                // Initialize an heuristic timeout to catch camera disconnects
                 delayCanvasCopyTimeout($video[0]);
 
                 $video[0].isCaptureInitializationHandled = true;
@@ -379,15 +386,29 @@ $(function () {
                 // Video stopped responding for enough time (camera may disconnected).
                 // Log error, filter out Video and mark to stop rAF.
                 logStreamStopError($video);
-                shouldRAF = false;
                 return false;
             }
+
+            // Great! Got a recently alive camera image within current Video
+            shouldRAF = true;
 
             // Adequate the scanned Canvas to current Video and copy the image
             $qrCanvas.prop('width', $video.width());
             $qrCanvas.prop('height', $video.height());
             let context = $qrCanvas[0].getContext('2d');
             context.drawImage($video[0], 0, 0);
+
+            // Is it suitable to copy the nearest valid capture to the mini preview Canvas?
+            // NOTE: Must do this before decoding to allow debugging points to show
+            if (
+                !$miniCamPreview[0].isCopyHandledCurFrame
+                && $miniCamPreview.is(':visible')
+            ) {
+                let context = $miniCamPreview[0].getContext('2d');
+                context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
+                    $miniCamPreview.height());
+                $miniCamPreview[0].isCopyHandledCurFrame = true;
+            }
 
             // If there is an ongoing asynchronous operation for decoding a QR code
             // from an uploaded photo (handled by JOB), wait for it to complete
@@ -406,13 +427,6 @@ $(function () {
         });
 
         if (shouldRAF) {
-            // Is it suitable to copy the nearest valid capture to the mini preview Canvas?
-            if ($videos.length > 0 && $miniCamPreview.is(':visible')) {
-                let context = $miniCamPreview[0].getContext('2d');
-                context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
-                    $miniCamPreview.height());
-            }
-
             // This should call browser API function if it exists, or setTimeout otherwise (each 16 ms)
             _requestAnimationFrame(captureToCanvas_ScanQR);
         }
