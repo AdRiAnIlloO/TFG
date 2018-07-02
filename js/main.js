@@ -16,9 +16,6 @@ function QrCaptureBoundsInfo(aspectRatio, width, height) {
 // Used to broadcast bounds info of the Videos with QR detection
 let g_QrCapturesBoundsInfo = [];
 
-var g_CompatModeDisplay = "Hemos detectado que accedes a la página desde los archivos de tu ordenador. "
-    + "¡No hay problema! Hemos habilitado unos mecanismos alternativos para que puedas utilizar la Web correctamente.";
-
 // Cached QR image URL of live session user
 var g_qrImgUrl = null;
 
@@ -75,14 +72,9 @@ $(function () {
         g_QrCapturesBoundsInfo.push(info);
     }
 
-    if (window.location.href.indexOf('file:///') == 0) {
-        $('#denied-protocol-alert').html(g_CompatModeDisplay);
-        $('#denied-protocol-alert').show();
+    if (window.location.href.indexOf('file:///') === 0) {
+        $('#file_protocol_access_alert').show();
     }
-
-    $('#denied-protocol-alert').click(function () {
-        $(this).toggle();
-    });
 
     //////////////////////////////////////////////////////////////////////
     ////////////               Iframe fallbacks               ////////////

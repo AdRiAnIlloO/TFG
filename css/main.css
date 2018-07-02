@@ -1,6 +1,6 @@
 /* All Z-indexes must be above the minimum value for Bootstrap modal to fully work, that is, 1050 */
 
-#denied-protocol-alert {
+#file_protocol_access_alert {
     display: none;
     width: 100%;
     position: absolute;

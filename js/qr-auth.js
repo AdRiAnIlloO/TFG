@@ -259,7 +259,7 @@ $(function () {
                  // Fallback to jsqrcode library
                 try {
                     wrappedDecodeQrCode();
-                } catch {
+                } catch(error) {
                     console.log("Error: failed to decode uploaded QR authentication photo file.");
                 }
             }
@@ -416,7 +416,7 @@ $(function () {
                 try {
                     $qrCanvas[0].videoIndex = index;
                     wrappedDecodeQrCode();
-                } catch {
+                } catch(error) {
                     window.parent.postMessage(
                         JSON.stringify(['qr_user_invalid_or_undetected']), '*'
                     );
@@ -505,16 +505,17 @@ $(function () {
 
     wrappedGUM();
 
-    // Is DecoderWorker invalid still?
+    // DecoderWorker is assummed to be invalid here, as it isn't present on root
     let decoderWorker = null;
+    const exifSrc = "thirdparty/JOB/exif.js"
 
     try {
         // Try load correct located decoder Worker (may fail under cross-origin)
-        decoderWorker = new Worker("thirdparty/JOB/exif.js");
+        decoderWorker = new Worker("thirdparty/JOB/DecoderWorker.js");
 
         // Call mandatory EddieLa/JOB library function, as author states
-        JOB.Init(decoderWorker, "thirdparty/JOB/exif.js");
-    } catch {
+        JOB.Init(decoderWorker, exifSrc);
+    } catch(error) {
         // Attempt to load the content of remote script
         $.get("https://eddiela.github.io/JOB/DecoderWorker.js", function(data) {
             // Allocate Worker from the data and via URL BLOB
@@ -525,7 +526,7 @@ $(function () {
             ));
 
             // Call mandatory EddieLa/JOB library function, as author states
-            JOB.Init(decoderWorker, "thirdparty/JOB/exif.js");
+            JOB.Init(decoderWorker, exifSrc);
         });
     }
 

@@ -6,10 +6,18 @@
     <link rel="stylesheet" href="thirdparty/bootstrap/css/bootstrap.min.css" />
     <link rel="stylesheet" href="css/main.css" />
     <script type="text/javascript" src="thirdparty/jquery.min.js"></script>
+    <script type="text/javascript" src="thirdparty/bootstrap/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/main.js"></script>
 </head>
 <body>
-    <div id="denied-protocol-alert" class="alert alert-danger text-center" role="alert"></div>
+    <div id="file_protocol_access_alert" role="alert"
+    class="alert alert-info alert-dismissible text-center fade show">
+        Hemos detectado que accedes a la página desde los archivos de tu ordenador.
+        ¡No hay problema! Hemos habilitado unos mecanismos alternativos para que puedas utilizar la Web correctamente.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
 
     <!--QR + classical input authentication-->
     <iframe id="qr-auth-html-wrapper" src="qr-auth.html"></iframe>
