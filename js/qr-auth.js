@@ -416,8 +416,9 @@ $(function () {
                 !$miniCamPreview[0].isCopyHandledCurFrame
                 && $miniCamPreview.is(':visible')
             ) {
-                let context = $miniCamPreview[0].getContext('2d');
-                context.drawImage($videos[0][0], 0, 0);
+                context = $miniCamPreview[0].getContext('2d');
+                context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
+                    $miniCamPreview.height());
                 $miniCamPreview[0].isCopyHandledCurFrame = true;
             }
 
