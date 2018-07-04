@@ -370,14 +370,12 @@ $(function () {
                 return false;
             }
 
-            $video[0].captureStream = $video[0].captureStream
-                || $video[0].mozCaptureStream;
-
             // Is currently allocated stream 'broken'? We must check it earlier to catch
             // disconnections when next precondition of readyState would be true
-            // BUG:'active' attribute randomly sets to false on some frames on
-            // 2nd Video, what to do? Still, it's fine as long as first Video is
-            if ($video[0].captureStream && !$video[0].captureStream().active) {
+            if (
+                $video[0].cachedCaptureStreamObject != null
+                && !$video[0].cachedCaptureStreamObject.active
+            ) {
                 // Stream disconnected. Log error, filter out Video and mark to stop rAF.
                 stopStreamFromVideo($video);
                 return false;
@@ -419,8 +417,7 @@ $(function () {
                 && $miniCamPreview.is(':visible')
             ) {
                 let context = $miniCamPreview[0].getContext('2d');
-                context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
-                    $miniCamPreview.height());
+                context.drawImage($videos[0][0], 0, 0);
                 $miniCamPreview[0].isCopyHandledCurFrame = true;
             }
 
@@ -446,7 +443,20 @@ $(function () {
         }
     }
 
-    $('#camera1_video')[0].onplay = captureToCanvas_ScanQR;
+    $('#camera1_video')[0].onplay = function() {
+        this.streamInitMsTime = Date.now();
+
+        try {
+            // BUG: We catch the reference of captureStream() here instead of
+            // within rAF, because calling it there stops some cameras's ticks!
+            this.captureStream = this.captureStream || this.mozCaptureStream;
+            this.cachedCaptureStreamObject = this.captureStream();
+        } catch (error) {
+
+        }
+
+        captureToCanvas_ScanQR();
+    };
 
     $('#camera1_video')[0].ontimeupdate = function() {
         delayCanvasCopyTimeout(this); // NOTE: this would be undefined in lambda
@@ -483,7 +493,6 @@ $(function () {
             $video.prop('src', URL.createObjectURL(stream));
         }
 
-        $video[0].streamInitMsTime = Date.now();
         $video[0].play();
     }
 
