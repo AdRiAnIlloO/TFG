@@ -3,7 +3,7 @@
 
 // Heuristic timeout to consider video capture as stopped while not receiving any 'ontimeupdate' event of it
 // In normal conditions, 'ontimeupdate' is fired around each 250 ms as much
-const CANVAS_COPY_TIMEOUT_MS = 1000; // 1 second
+const CANVAS_COPY_TIMEOUT_MS = 5000; // 5 seconds
 
 const X_DIM = 0;
 const Y_DIM = 1;
@@ -327,12 +327,26 @@ $(function () {
         video.nextCheckMsTime = Date.now() + CANVAS_COPY_TIMEOUT_MS;
     }
 
-    function logStreamStopError($video) {
-        if (!$video[0].isStreamStopLogged) {
-            console.log("Error: video element with id: '" + $video.prop('id')
-                + "' recently stopped receiving camera data");
-            $video[0].isStreamStopLogged = true;
-        }
+    function stopStreamFromVideo($video) {
+        let stream = $video.prop('srcObject');
+
+        // Implicit feature detection check
+       if (stream == null) {
+           return;
+       }
+
+       let track = stream.getTracks()[0];
+
+       if (track != null) {
+           track.stop();
+       }
+
+       if (!$video[0].isStreamStopLogged) {
+           console.log("Error: video element with id: '" + $video.prop('id')
+               + "' recently stopped receiving camera data");
+       }
+
+       $video[0].isStreamStopLogged = true;
     }
 
     // Copy captured image to canvas and scan QR from it (jsqrcode library requires it)
@@ -365,7 +379,7 @@ $(function () {
             // 2nd Video, what to do? Still, it's fine as long as first Video is
             if ($video[0].captureStream && !$video[0].captureStream().active) {
                 // Stream disconnected. Log error, filter out Video and mark to stop rAF.
-                logStreamStopError($video);
+                stopStreamFromVideo($video);
                 return false;
             }
 
@@ -385,7 +399,7 @@ $(function () {
             } else if (now >= $video[0].nextCheckMsTime) {
                 // Video stopped responding for enough time (camera may disconnected).
                 // Log error, filter out Video and mark to stop rAF.
-                logStreamStopError($video);
+                stopStreamFromVideo($video);
                 return false;
             }
 
