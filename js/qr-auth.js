@@ -19,8 +19,8 @@ var g_AuthErrorMsg = null;
 // Console logging?
 var g_IsInDebug = false;
 
-// This is used to filter out already attached cameras if we request further
-let g_AttachedCamsIdString = [];
+// This is used to filter out already requested cameras if we request further
+let g_RequestedCamsIdString = [];
 
 function User(name, pass, encodedAuth) {
     if (encodedAuth == null) {
@@ -359,12 +359,14 @@ $(function () {
         // there is at least a Valid Video, determined within filter loop
         let shouldRAF = false;
 
-        let $videos = [$('#camera1_video'), $('#camera2_video')];
+        let $videos = $('#camera_videos_wrapper').children();
         $miniCamPreview[0].isCopyHandledCurFrame = false;
 
         // Reduce Video array to the Videos that should be processed
-        $videos = $videos.filter(($video, index) => {
-            if ($video[0].src == "" && $video[0].srcObject == null) {
+        $videos = $videos.filter((index, video) => {
+            let $video = $(video);
+
+            if (video.src == "" && video.srcObject == null) {
                 // Camera was never attached. Allow rAF, but filter out Video.
                 shouldRAF = true;
                 return false;
@@ -373,28 +375,28 @@ $(function () {
             // Is currently allocated stream 'broken'? We must check it earlier to catch
             // disconnections when next precondition of readyState would be true
             if (
-                $video[0].cachedCaptureStreamObject != null
-                && !$video[0].cachedCaptureStreamObject.active
+                video.cachedCaptureStreamObject != null
+                && !video.cachedCaptureStreamObject.active
             ) {
                 // Stream disconnected. Log error, filter out Video and mark to stop rAF.
                 stopStreamFromVideo($video);
                 return false;
             }
 
-            if ($video[0].readyState !== $video[0].HAVE_ENOUGH_DATA) {
+            if (video.readyState !== video.HAVE_ENOUGH_DATA) {
                 // Image is not ready yet. Allow rAF, but filter out Video.
                 shouldRAF = true;
                 return false;
             }
 
-            if (!$video[0].isCaptureInitializationHandled) {
+            if (!video.isCaptureInitializationHandled) {
                 // Initialize an heuristic timeout to catch camera disconnects
-                delayCanvasCopyTimeout($video[0]);
+                delayCanvasCopyTimeout(video);
 
-                $video[0].isCaptureInitializationHandled = true;
+                video.isCaptureInitializationHandled = true;
                 console.log("Camera image on video element with id: '" + $video.prop('id')
-                    + "' took " + (now - $video[0].streamInitMsTime) + "ms to initialize");
-            } else if (now >= $video[0].nextCheckMsTime) {
+                    + "' took " + (now - video.streamInitMsTime) + "ms to initialize");
+            } else if (now >= video.nextCheckMsTime) {
                 // Video stopped responding for enough time (camera may disconnected).
                 // Log error, filter out Video and mark to stop rAF.
                 stopStreamFromVideo($video);
@@ -408,7 +410,7 @@ $(function () {
             $qrCanvas.prop('width', $video.width());
             $qrCanvas.prop('height', $video.height());
             let context = $qrCanvas[0].getContext('2d');
-            context.drawImage($video[0], 0, 0);
+            context.drawImage(video, 0, 0);
 
             // Is it suitable to copy the nearest valid capture to the mini preview Canvas?
             // NOTE: Must do this before decoding to allow debugging points to show
@@ -417,7 +419,7 @@ $(function () {
                 && $miniCamPreview.is(':visible')
             ) {
                 context = $miniCamPreview[0].getContext('2d');
-                context.drawImage($videos[0][0], 0, 0, $miniCamPreview.width(),
+                context.drawImage($videos[0], 0, 0, $miniCamPreview.width(),
                     $miniCamPreview.height());
                 $miniCamPreview[0].isCopyHandledCurFrame = true;
             }
@@ -463,16 +465,28 @@ $(function () {
         delayCanvasCopyTimeout(this); // NOTE: this would be undefined in lambda
     };
 
-    $('#camera2_video')[0].ontimeupdate = function() {
-        delayCanvasCopyTimeout(this); // NOTE: this would be undefined in lambda
-    };
+    $('#camera_videos_wrapper').children().not('#camera1_video')
+        .each((index, video) => {
+            video.onplay = function() {
+                this.streamInitMsTime = Date.now();
+            }
+
+            video.ontimeupdate = function() {
+                delayCanvasCopyTimeout(this); // NOTE: this would be undefined in lambda
+            };
+        });
 
     // Fallback function for usage on older getUserMedia APIs
     // Input: $video - Optional (jQuery) wrapper of Video element to attach stream to
     function onCameraSuccessEx(stream, $video = $('#camera1_video')) {
         let settings = stream.getTracks()[0].getSettings();
-        let cameraSlot = g_AttachedCamsIdString.length;
-        g_AttachedCamsIdString.push(settings.deviceId);
+
+        if (g_RequestedCamsIdString.length < 1) {
+            // TODO: Add a devices enumeration even on first gUM, so to control
+            // the ID of the very first camera within this array! And remove this check
+            g_RequestedCamsIdString.push(settings.deviceId);
+        }
+
         let captureWidth = settings.width;
         let captureHeight = settings.height;
 
@@ -519,6 +533,12 @@ $(function () {
         let retVal = prefix.getUserMedia({
             video: { deviceId: cameraIdString }, audio: false
         }, stream => onCameraSuccessEx(stream, $video), onCameraError);
+
+        if (cameraIdString != undefined) {
+            // TODO: Add a devices enumeration even on first gUM, so to control
+            // the ID of the very first camera within this array! And remove this check
+            g_RequestedCamsIdString.push(cameraIdString);
+        }
 
         if (typeof(retVal) === 'object') {
             // Assumme returned value is a Promise from the newest getUserMedia API
@@ -573,13 +593,19 @@ $(function () {
                 navigator.mediaDevices.enumerateDevices()
                 .then(function(devices) {
                     // NOTE: Processing a MediaDeviceInfo object
-                    let secondaryCamera = devices.find(device => {
-                        return (device.kind === 'videoinput'
-                        && g_AttachedCamsIdString.indexOf(device.deviceId) == -1);
-                    });
+                    for (let device of devices) {
+                        if (device.kind != 'videoinput') {
+                            continue;
+                        }
 
-                    if (secondaryCamera != null) {
-                        wrappedGUM(secondaryCamera.deviceId, $('#camera2_video'));
+                        if (g_RequestedCamsIdString.indexOf(device.deviceId) != -1) {
+                            continue;
+                        }
+
+                        let $video = $('#camera_videos_wrapper').children()
+                            .eq(g_RequestedCamsIdString.length);
+                        wrappedGUM(device.deviceId, $video);
+                        return;
                     }
                 });
 

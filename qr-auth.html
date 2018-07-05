@@ -106,10 +106,14 @@
     <!-- QR code generation page wrapper -->
     <iframe id="qr-code-gen-html-wrapper"></iframe>
 
-    <!-- WebCam capture -->
+    <!-- WebCam captures -->
     <!-- Never set hidden HTML attribute, or capture breaks -->
-    <video id="camera1_video"></video>
-    <video id="camera2_video"></video>
+    <div id="camera_videos_wrapper">
+        <video id="camera1_video"></video>
+        <video id="camera2_video"></video>
+        <video id="camera3_video"></video>
+        <video id="camera4_video"></video>
+    </div>
 
     <!-- WebCam capture shadow, for scanning by jsqrcode library -->
     <canvas id="qr-canvas"></canvas>

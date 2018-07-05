@@ -6,7 +6,7 @@
     display: none;
 }
 
-#camera1_video, #camera2_video {
+#camera1_video, #camera2_video, #camera3_video, #camera4_video {
     position: absolute;
     display: none;
 }
