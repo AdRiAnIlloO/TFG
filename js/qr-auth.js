@@ -469,6 +469,15 @@ $(function () {
         .each((index, video) => {
             video.onplay = function() {
                 this.streamInitMsTime = Date.now();
+
+                try {
+                    // BUG: We catch the reference of captureStream() here instead of
+                    // within rAF, because calling it there stops some cameras's ticks!
+                    this.captureStream = this.captureStream || this.mozCaptureStream;
+                    this.cachedCaptureStreamObject = this.captureStream();
+                } catch (error) {
+
+                }
             }
 
             video.ontimeupdate = function() {
