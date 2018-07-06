@@ -327,7 +327,7 @@ $(function () {
         video.nextCheckMsTime = Date.now() + CANVAS_COPY_TIMEOUT_MS;
     }
 
-    function stopStreamFromVideo($video) {
+    function stopVideoStream($video) {
         let stream = $video.prop('srcObject');
 
         // Implicit feature detection check
@@ -366,20 +366,14 @@ $(function () {
         $videos = $videos.filter((index, video) => {
             let $video = $(video);
 
-            if (video.src == "" && video.srcObject == null) {
-                // Camera was never attached. Allow rAF, but filter out Video.
-                shouldRAF = true;
-                return false;
-            }
-
-            // Is currently allocated stream 'broken'? We must check it earlier to catch
-            // disconnections when next precondition of readyState would be true
+            // Is newer API available and initialized? Also, did stream end?
             if (
                 video.cachedCaptureStreamObject != null
-                && !video.cachedCaptureStreamObject.active
+                && video.cachedCaptureStreamObject.readyState == 'ended'
             ) {
-                // Stream disconnected. Log error, filter out Video and mark to stop rAF.
-                stopStreamFromVideo($video);
+                // Stream disconnected.
+                // Log error, filter out Video and mark to stop rAF.
+                stopVideoStream($video);
                 return false;
             }
 
@@ -393,13 +387,13 @@ $(function () {
                 // Initialize an heuristic timeout to catch camera disconnects
                 delayCanvasCopyTimeout(video);
 
-                video.isCaptureInitializationHandled = true;
-                console.log("Camera image on video element with id: '" + $video.prop('id')
+                console.log("Camera image on video element with id: '" + video.id
                     + "' took " + (now - video.streamInitMsTime) + "ms to initialize");
+                video.isCaptureInitializationHandled = true;
             } else if (now >= video.nextCheckMsTime) {
-                // Video stopped responding for enough time (camera may disconnected).
+                // Video stopped responding: camera may disconnected.
                 // Log error, filter out Video and mark to stop rAF.
-                stopStreamFromVideo($video);
+                stopVideoStream($video);
                 return false;
             }
 
